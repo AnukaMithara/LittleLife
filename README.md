@@ -15,7 +15,8 @@ This is the first working milestone, not a signed installer release. A personal 
 - Quiet mode, pause, and reduced motion, including the operating system preference.
 - A transparent, frameless, always-on-top Tauri window with a compact companion mode.
 - A browser preview using the same character and behavior engine.
-- No account, analytics, API key, or runtime network request.
+- No account, analytics, or API key required for offline operation.
+- Optional Jev decisions in the Windows/macOS app, using your own key in the OS credential store.
 
 Moss rests after two minutes without interaction **inside LittleLife**. This is not system-wide idle detection. Walking happens within the companion window. The app does not read your screen, track other applications, follow windows, or inspect global mouse/keyboard activity. The transparent rectangle still receives clicks; pixel-level click-through is not implemented.
 
@@ -60,7 +61,7 @@ npx playwright install chromium
 npx playwright test
 ```
 
-If you already have Chromium installed, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable path instead of downloading a browser. CI runs the behavior tests, production build, browser interaction tests, and Windows/macOS native compilation. Native compilation does not prove overlay behavior on a real desktop; see [the manual checklist](docs/TESTING.md).
+If you already have Chromium installed, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable path instead of downloading a browser. CI runs the behavior tests, production build, browser interaction tests, and Windows/macOS native compilation and Rust tests. Native compilation does not prove overlay behavior on a real desktop; see [the manual checklist](docs/TESTING.md).
 
 ## Small by design
 
@@ -79,7 +80,18 @@ The decision loop runs every six seconds, with a one-second needs tick. Animatio
 
 ## Jev and character packs
 
-Jev is **not integrated in this milestone**. The offline engine already selects from a finite action set, providing a small boundary for a future optional provider. The next milestone should add user-supplied credentials in the OS keychain, explicit opt-in, minimal observations, timeouts, rate limits, and automatic offline fallback. Never ship a shared API key in the frontend. No API cost is incurred by this version.
+Jev is optional and **off at every app launch**. The browser preview remains offline; API setup is available only in the Windows/macOS desktop app.
+
+1. Open **Little settings → Optional Jev behavior**.
+2. Paste your own TypeSafe API key and click **Save key**. The input is cleared; the key is stored in Windows Credential Manager or macOS Keychain, never localStorage.
+3. Choose a session request cap (default 20, maximum 120), then enable **Jev this session**. This explicitly permits the listed pet observations to be sent to TypeSafe.
+4. Use **Remove saved key** to disable Jev and delete its credential.
+
+Requests run in Rust against the fixed official TypeSafe endpoint. Only energy, bond, seconds since interaction inside LittleLife, a cursor-nearby boolean, and the last supported action leave the app. Names, screen contents, other applications, and documents are excluded. Calls happen at most once per minute, with one in flight, a ten-second network deadline, and no automatic retries. Failures back off; authentication failures disable the provider. Local behavior keeps running throughout.
+
+The visible cap counts **attempts per app session**, including failed calls; toggling Jev or changing the key does not reset it. Restarting the app resets the cap and counters and requires enabling Jev again. This is a request cap, not a monetary spending guarantee. Token usage is reported when the provider returns a readable usage response. Provider charges may apply. Disabling Jev stops new requests; an already transmitted request may finish and be billed, but its action is discarded.
+
+The app rejects unknown/uncertain choices and ignores delayed results after direct interaction, pause, rest, settings changes, or hiding. Quiet mode, reduced motion, low energy, and inactivity retain priority. See [the integration notes](docs/JEV.md) for the verified protocol and test coverage.
 
 See [the roadmap](docs/ROADMAP.md) for Jev, community character packs, and native overlay improvements.
 

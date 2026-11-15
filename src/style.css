@@ -808,3 +808,26 @@ h2 {
     opacity: 1;
   }
 }
+
+.jev-settings {
+  border: 1px solid #dfe5d5;
+  border-radius: 10px;
+  margin: 20px 0 0;
+  padding: 12px;
+}
+.jev-settings legend {
+  padding: 0 6px;
+  font-size: 12px;
+  color: #5c7353;
+}
+.jev-settings .settings-note {
+  font-size: 11px;
+}
+#jev-limit {
+  width: 58px;
+  padding: 6px;
+  border: 1px solid #dfe5d5;
+  border-radius: 5px;
+  color: inherit;
+  background: #fffefa;
+}
