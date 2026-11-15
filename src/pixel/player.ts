@@ -1,5 +1,6 @@
 import {
   compose,
+  detailOf,
   HEIGHT,
   WIDTH,
   recolor,
@@ -46,6 +47,14 @@ export class PixelPlayer {
       (state.still && !this.state.still)
     )
       this.elapsed = 0;
+    // A detailed character has more pixels in the same space on screen.
+    const k = detailOf(state.character);
+    if (this.canvas.width !== WIDTH * k) {
+      this.canvas.width = WIDTH * k;
+      this.canvas.height = HEIGHT * k;
+      this.context.imageSmoothingEnabled = false;
+      this.key = "";
+    }
     this.state = state;
     this.canvas.dataset.character = state.character.id;
     this.canvas.dataset.pose = state.pose;
@@ -102,13 +111,14 @@ export class PixelPlayer {
       s.still,
     );
     const palette = recolor(s.character.palette, s.primary, s.accent);
-    this.context.clearRect(0, 0, WIDTH, HEIGHT);
+    const wide = this.canvas.width;
+    this.context.clearRect(0, 0, wide, this.canvas.height);
     // Horizontal runs keep draw calls low, with exact integer edges at every scale.
     pixels.forEach((row, y) => {
-      for (let x = 0; x < WIDTH;) {
+      for (let x = 0; x < wide;) {
         const token = row[x];
         let end = x + 1;
-        while (end < WIDTH && row[end] === token) end++;
+        while (end < wide && row[end] === token) end++;
         if (token !== ".") {
           this.context.fillStyle = palette[token];
           this.context.fillRect(x, y, end - x, 1);

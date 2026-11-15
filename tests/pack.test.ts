@@ -60,6 +60,7 @@ describe("character packs", () => {
     expect(Object.keys(copy).sort()).toEqual([
       "author",
       "clips",
+      "detail",
       "id",
       "license",
       "lines",
@@ -70,6 +71,18 @@ describe("character packs", () => {
       "traits",
     ]);
     expect(parsePack(pack({ name: "  Tab\there\n " })).name).toBe("Tab here");
+    // Double detail allows grids twice as large; ordinary packs keep the usual limit.
+    const wide = "o".repeat(100);
+    const part = (pack().parts as Record<string, unknown>[])[0];
+    expect(() =>
+      parsePack(pack({ parts: [{ ...part, pixels: [wide] }] })),
+    ).not.toThrow();
+    expect(() =>
+      parsePack(pack({ detail: 1, parts: [{ ...part, pixels: [wide] }] })),
+    ).toThrow(/one width of 1 to 64/);
+    expect(() => parsePack(pack({ detail: 3 }))).toThrow(
+      /detail must be between 1 and 2/,
+    );
   });
   it("explains what is wrong with a bad pack", () => {
     const parts = pack().parts as Record<string, unknown>[];

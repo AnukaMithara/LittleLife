@@ -32,7 +32,7 @@ This is a 2D cutout rig with authored views, not a 3D model or an automatic conv
 
 ## Add a character
 
-Define a `PixelCharacter`, validate it, and register it in `CHARACTERS`. Each `Part` needs an ID, attachment bone, integer position, and a rectangular token grid. Existing pose clips immediately work with correctly attached parts.
+Define a `PixelCharacter`, validate it, and register it in `CHARACTERS`. A character with `detail: 2` is drawn at twice the resolution in the same space; see CHARACTER-PACKS.md. Each `Part` needs an ID, attachment bone, integer position, and a rectangular token grid. Existing pose clips immediately work with correctly attached parts.
 
 ```typescript
 import { CHARACTERS } from './art';

@@ -25,7 +25,7 @@ export const PACK_FORMAT = "littlelife.character";
 export const PACK_VERSION = 1;
 export const LIMITS = {
   /** Size of one pack file, in characters. */
-  size: 200_000,
+  size: 400_000,
   parts: 40,
   colors: 40,
   frames: 16,
@@ -80,15 +80,16 @@ function oneOf<T extends string>(
     ? (value as T)
     : fail(`${what} must be one of: ${options.join(", ")}.`);
 }
-function grid(value: unknown, what: string, palette: Palette): Grid {
+function grid(value: unknown, what: string, palette: Palette, k: number): Grid {
   if (!Array.isArray(value)) return fail(`${what} must be a list of rows.`);
-  if (value.length > HEIGHT) return fail(`${what} is taller than ${HEIGHT}.`);
+  if (value.length > HEIGHT * k)
+    return fail(`${what} is taller than ${HEIGHT * k}.`);
   const rows = value.map((row) =>
     typeof row === "string" ? row : fail(`${what} rows must be text.`),
   );
   for (const row of rows) {
-    if (!row.length || row.length > WIDTH || row.length !== rows[0].length)
-      return fail(`${what} rows must share one width of 1 to ${WIDTH}.`);
+    if (!row.length || row.length > WIDTH * k || row.length !== rows[0].length)
+      return fail(`${what} rows must share one width of 1 to ${WIDTH * k}.`);
     for (const token of row)
       if (token !== "." && !Object.hasOwn(palette, token))
         return fail(`${what} uses "${token}", which is not in the palette.`);
@@ -122,15 +123,15 @@ function palette(value: unknown): Palette {
   }
   return result;
 }
-function part(value: unknown, index: number, colors: Palette): Part {
+function part(value: unknown, index: number, colors: Palette, k: number): Part {
   const raw = object(value, `Part ${index + 1}`);
   const what = `Part "${typeof raw.id === "string" ? raw.id : index + 1}"`;
-  const pixels = (item: unknown, name: string) => grid(item, name, colors);
+  const pixels = (item: unknown, name: string) => grid(item, name, colors, k);
   const result: Part = {
     id: text(raw.id, `${what} id`, 32),
     bone: oneOf<Bone>(raw.bone, BONES, `${what} bone`),
-    x: whole(raw.x, `${what} x`, -WIDTH, 2 * WIDTH),
-    y: whole(raw.y, `${what} y`, -HEIGHT, 2 * HEIGHT),
+    x: whole(raw.x, `${what} x`, -WIDTH * k, 2 * WIDTH * k),
+    y: whole(raw.y, `${what} y`, -HEIGHT * k, 2 * HEIGHT * k),
     pixels: pixels(raw.pixels, `${what} pixels`),
   };
   const attachments = table(
@@ -218,15 +219,18 @@ export function parsePack(input: unknown): PixelCharacter {
     raw.parts.length > LIMITS.parts
   )
     fail(`A character needs 1 to ${LIMITS.parts} parts.`);
+  // Twice the pixels in the same space, for characters drawn in fine detail.
+  const k = raw.detail === undefined ? 1 : whole(raw.detail, "detail", 1, 2);
   const character: PixelCharacter = {
     id,
     name: text(raw.name, "The name", LIMITS.name),
     title: text(raw.title, "The title", LIMITS.title),
     palette: colors,
     parts: (raw.parts as unknown[]).map((item, index) =>
-      part(item, index, colors),
+      part(item, index, colors, k),
     ),
   };
+  if (k === 2) character.detail = 2;
   const clips = table(raw.clips, POSES, "clips", clip);
   if (clips) character.clips = clips;
   if (raw.traits !== undefined) {

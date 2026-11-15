@@ -10,7 +10,7 @@ Open **Characters ↗ → Pixel character workshop**.
 - **Share this one** saves the current character as a pack (the desktop app copies it to the clipboard instead). This works for built-in characters too, so the quickest way to make your own is to share one, edit it and add it back under a new `id`.
 - **Remove** appears for characters you added.
 
-Up to 12 packs are kept, each at most 200 kB. A pack that fails a check is refused with the reason, and nothing changes.
+Up to 12 packs are kept, each at most 400 kB. A pack that fails a check is refused with the reason, and nothing changes.
 
 [`examples/pip.littlelife.json`](examples/pip.littlelife.json) is a small complete pack to start from: five parts, three views of the body, four expressions, a balloon that only appears when flying, and its own flying clip.
 
@@ -32,6 +32,10 @@ Each part hangs from one of seven bones. A pose moves and turns bones; parts fol
 
 Feet rest at about `y: 61`. Parts are drawn in the order listed, later ones on top.
 
+### Double detail
+
+Set `"detail": 2` to draw with pixels half the size: a 128 × 160 canvas shown in the same space on screen, which is enough for faces, folds, trim and shading. Everything you draw is then in a 96 × 128 authoring space, offset 16 across and 24 down: part positions and grids double, pivots double (`body` is at 48, 86 and feet rest near `y: 122`), and grids may be up to 128 × 160. Clips are unchanged, because their offsets are still counted in ordinary pixels. Shared effects such as the heart are drawn as 2 × 2 blocks. Wukong is drawn this way; the other built-in characters use ordinary detail.
+
 ## Format
 
 ```jsonc
@@ -42,6 +46,7 @@ Feet rest at about `y: 61`. Parts are drawn in the order listed, later ones on t
   "name": "Pip",                    // 1–24 characters
   "title": "POCKET SPROUT",         // 1–28 characters
   "author": "…", "license": "…",    // optional, up to 80 characters each
+  "detail": 2,                      // optional: 1 (default) or 2 for double detail
   "palette": { "o": "#2b2a3a" },    // 1–40 single-character keys → #rrggbb
   "parts": [ /* 1–40 parts */ ],
   "clips": { /* optional */ },

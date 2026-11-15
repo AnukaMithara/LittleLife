@@ -8,7 +8,7 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 
 ## What works
 
-- Five original pixel characters with shared animations, including Wukong, who rides a golden cloud whenever he flies.
+- Five original pixel characters with shared animations, including Wukong, drawn at double pixel detail, who rides a golden cloud whenever he flies.
 - **Bring your own character.** A character is one data-only JSON pack: add packs, share any character as a pack, and edit it. See [character packs](docs/CHARACTER-PACKS.md).
 - A character workshop with palette controls, four directions, and sitting/waving pose previews.
 - Pet, play, rest, and wake interactions.

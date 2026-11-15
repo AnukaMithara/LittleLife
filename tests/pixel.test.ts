@@ -4,6 +4,7 @@ import { restoreAppearance } from "../src/pixel/appearance";
 import {
   clipFor,
   compose,
+  detailOf,
   FACINGS,
   HEIGHT,
   POSES,
@@ -37,15 +38,17 @@ describe("pixel characters and shared poses", () => {
           for (const frame of clipFor(pose, character).frames) {
             const grid = compose(character, pose, facing, time + 1);
             const name = `${character.id}/${pose}/${facing}/${time}`;
-            expect(grid.length, name).toBe(HEIGHT);
+            const wide = WIDTH * detailOf(character),
+              high = HEIGHT * detailOf(character);
+            expect(grid.length, name).toBe(high);
             expect(
-              grid.every((row) => row.length === WIDTH),
+              grid.every((row) => row.length === wide),
               name,
             ).toBe(true);
             expect(
               grid[0] +
-                grid[HEIGHT - 1] +
-                grid.map((row) => row[0] + row[WIDTH - 1]).join(""),
+                grid[high - 1] +
+                grid.map((row) => row[0] + row[wide - 1]).join(""),
               name,
             ).toMatch(/^\.+$/);
             for (const token of new Set(grid.join("")))

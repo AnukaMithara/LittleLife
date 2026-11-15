@@ -54,6 +54,48 @@ export class Pixels {
       }
     return this;
   }
+  /** A straight stroke of square dabs. */
+  line(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    color: string,
+    thick = 1,
+  ) {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+    for (let i = 0; i <= steps; i++)
+      this.rect(
+        Math.round(x0 + ((x1 - x0) * i) / steps - (thick - 1) / 2),
+        Math.round(y0 + ((y1 - y0) * i) / steps - (thick - 1) / 2),
+        thick,
+        thick,
+        color,
+      );
+    return this;
+  }
+  /** Trace everything drawn so far with a one-pixel edge. */
+  outline(color: string) {
+    const before = this.cells.map((row) => [...row]);
+    for (let y = 0; y < this.height; y++)
+      for (let x = 0; x < this.width; x++)
+        if (
+          before[y][x] === "." &&
+          [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ].some(([dx, dy]) => (before[y + dy]?.[x + dx] ?? ".") !== ".")
+        )
+          this.cells[y][x] = color;
+    return this;
+  }
+  /** The same drawing facing the other way. */
+  mirror() {
+    this.cells = this.cells.map((row) => [...row].reverse());
+    return this;
+  }
   grid(): Grid {
     return this.cells.map((row) => row.join(""));
   }
