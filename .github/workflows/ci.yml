@@ -43,3 +43,4 @@ jobs:
           workspaces: src-tauri -> target
       - run: npm ci
       - run: npm run tauri build -- --no-bundle
+      - run: cargo test --release --manifest-path src-tauri/Cargo.toml --lib

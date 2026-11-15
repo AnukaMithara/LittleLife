@@ -6,7 +6,13 @@ Implemented: Moss artwork and six animations; pet/play/rest; local state; quiet,
 
 Before calling this a desktop release, run the Windows and macOS checklist in TESTING.md. Native packaging and real desktop behavior are separate acceptance steps.
 
-## Milestone 2: a reliable desktop neighbor
+## Milestone 2: optional Jev behavior
+
+Implemented: native OS key storage; explicit per-session enablement; a finite action allowlist; minimal pet observations; native cooldown, request cap and one-in-flight enforcement; timeouts, error backoff and offline fallback; stale-response rejection; usage display and key removal.
+
+Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account works. A user-supplied key and hands-on Windows/macOS credential-store checks remain release acceptance items. See JEV.md.
+
+## Milestone 3: a reliable desktop neighbor
 
 - Real Windows and macOS overlay testing, including transparent hit testing.
 - Tray/menu recovery and a global shortcut before offering hidden or click-through modes.
@@ -14,17 +20,7 @@ Before calling this a desktop release, run the Windows and macOS checklist in TE
 - Respect full-screen applications and presentations.
 - Measure CPU, memory, and power use, including during extended idle periods.
 - Signed Windows installers and signed/notarized macOS builds.
-
-## Milestone 3: optional Jev behavior
-
-- Verify the current official SDK and model contract before implementation.
-- Let users enable Jev explicitly and supply their own API key.
-- Store secrets using the native OS credential store, never localStorage.
-- Send only the pet's state and explicitly enabled observations. No screenshots, application names, keystrokes, or documents.
-- Accept only supported actions; reject malformed or stale results.
-- Enforce action durations, request deadlines, cooldowns, and a visible usage budget.
-- Continue playing offline when disabled, disconnected, rate limited, or out of credit.
-- Keep local memory and personality changes understandable and resettable.
+- Additional local personality traits, understandable memory, and reset controls.
 
 ## Milestone 4: bring your own little friend
 
