@@ -2,7 +2,7 @@
 name = "littlelife"
 version = "0.1.0"
 description = "A little company for your everyday"
-authors = ["AppKade"]
+authors = ["Anuka Mithara"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.77.2"

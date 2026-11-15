@@ -4,7 +4,7 @@
 
 An offline-first desktop companion for Windows and macOS. Meet **Moss**, an original little leaf spirit that blinks, wanders, naps, and gets very happy to see you.
 
-This is the first working milestone, not a signed installer release. The repository is currently private; the code is MIT licensed.
+This is the first working milestone, not a signed installer release. A personal open-source project by Anuka Mithara, licensed under MIT.
 
 ## What works
 
