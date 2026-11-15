@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "LittleLife",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "io.github.anukamithara.littlelife",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -43,6 +43,6 @@
     ],
     "shortDescription": "An offline desktop companion",
     "category": "Entertainment",
-    "macOS": { "minimumSystemVersion": "11.0" }
+    "macOS": { "minimumSystemVersion": "11.0", "signingIdentity": "-" }
   }
 }

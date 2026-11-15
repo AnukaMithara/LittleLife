@@ -46,6 +46,7 @@ The pose preview in PIXEL-ENGINE.md is generated from engine output. No referenc
 ## Desktop preview acceptance
 
 - [ ] Install the matching Windows or Mac artifact and verify its BUILD.json commit and SHA256SUMS.
+- [ ] On macOS, verify the copied app with `codesign --verify --deep --strict --verbose=2 /Applications/LittleLife.app`; distinguish unverified-developer approval from a failed signature or damaged-app warning.
 - [ ] Hide, show, compact, expand, reset placement and quit using the real native tray/menu-bar icon.
 - [ ] Enable click-through, click underlying applications, then recover using Interact / restore clicks.
 - [ ] Quit and relaunch from click-through; it must start with normal mouse interaction.

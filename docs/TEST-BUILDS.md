@@ -14,7 +14,17 @@ The **Check LittleLife** workflow builds downloadable preview artifacts for ever
 
 Artifacts expire after 14 days. A workflow run is not a published GitHub release. `BUILD.json` records the checked-out source commit; `SHA256SUMS` records file hashes for integrity, not a signing identity.
 
-These are **unsigned, non-notarized test builds**. If the OS blocks one, use the documented developer setup or wait for signed distribution. Signing/notarization and automatic updates are not configured in this phase. No certificate, account, API key, or provider credential is bundled.
+These are **test builds without an authenticated publisher identity or notarization**. macOS 0.1.1 and later use an ad-hoc app signature to seal the bundle; this is not Apple Developer ID signing. CI mounts each finished DMG read-only and verifies its checksum, the embedded app signature, bundle identity and CPU architecture before uploading it. Windows previews remain unsigned. Developer ID signing, notarization and automatic updates are not configured. No private signing certificate, account, API key, or provider credential is bundled.
+
+For a trusted Mac preview that reports an **unidentified developer** or **Apple cannot check** prompt, follow [Apple's per-app Privacy & Security → Open Anyway process](https://support.apple.com/en-us/102445). Ad-hoc signing does not remove that approval step. A **damaged** warning is different: discard the old download and use a fresh 0.1.1-or-newer artifact. Do not treat a failed signature check as normal developer verification.
+
+After copying to Applications, this read-only check should succeed:
+
+```bash
+codesign --verify --deep --strict --verbose=2 /Applications/LittleLife.app
+```
+
+If it fails, keep the error output for diagnosis and download a fresh artifact matching your Mac's CPU. Do not disable Gatekeeper globally. The old 0.1.0 previews lacked configured bundle signing and did not verify embedded signatures in CI. A successful signature check verifies integrity; it does not prove notarization or guarantee Gatekeeper approval.
 
 On Windows, prefer the setup EXE. It can install WebView2 when needed; that step may require a network connection. The portable EXE needs WebView2 already installed. On macOS, copy the matching DMG's LittleLife app to Applications. Jev remains optional and off at launch.
 

@@ -31,11 +31,13 @@ def collect(target: str, label: str, bundle: str, commit: str, root: Path = Path
     }, indent=2) + '\n', encoding='utf-8')
     (output / 'README.txt').write_text(
         'LittleLife test build\n\n'
-        'This is an unsigned test build, not a signed or notarized public release.\n'
+        'This is a preview without a verified publisher identity or notarization.\n'
+        'Mac apps use an ad-hoc signature for bundle integrity, not an Apple Developer ID.\n'
         'Choose the installer matching your OS and CPU architecture.\n'
         'Windows: prefer the setup installer. The portable EXE needs WebView2 installed.\n'
         'macOS: open the matching DMG and copy LittleLife to Applications.\n'
-        'If the operating system blocks an unsigned build, use the documented developer setup or wait for signed distribution.\n\n'
+        'For an unverified-developer prompt on Mac, use Privacy & Security > Open Anyway only for your trusted download.\n'
+        'If macOS reports damage, do not bypass it: verify the signature or download a fresh build.\n\n'
         'Recovery: use the LittleLife tray/menu-bar icon, then Interact / restore clicks.\n'
         'Reset position recovers a companion from a removed display. Quit exits the process.\n'
         'Jev is optional and off at launch. No API key is included.\n\n'

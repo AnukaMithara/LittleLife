@@ -1,6 +1,6 @@
 [package]
 name = "littlelife"
-version = "0.1.0"
+version = "0.1.1"
 description = "A little company for your everyday"
 authors = ["Anuka Mithara"]
 license = "MIT"
