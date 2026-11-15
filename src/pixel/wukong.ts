@@ -54,6 +54,9 @@ const palette: Palette = {
 };
 const AIRBORNE: readonly Pose[] = ["fly", "swim"];
 const GROUNDED = POSES.filter((pose) => !AIRBORNE.includes(pose));
+/** Poses in which the staff comes off his back and spins in his hands. */
+const SPINNING: readonly Pose[] = ["jump", "dance"];
+const SHEATHED = GROUNDED.filter((pose) => !SPINNING.includes(pose));
 type Point = [number, number];
 
 /** A limb or ribbon: one thick stroke through several points. */
@@ -408,6 +411,48 @@ function staff(): Grid {
 }
 
 /**
+ * The staff in his hands, upright and centred so it can turn about its middle,
+ * with a streak of light trailing each end.
+ */
+function spinningStaff(): Grid {
+  const p = new Pixels(80, 80);
+  for (const [from, sign] of [
+    [-90, -1],
+    [90, -1],
+  ])
+    for (let t = 6; t <= 46; t += 1) {
+      const angle = ((from + sign * t) * Math.PI) / 180;
+      const x = Math.round(40 + 33 * Math.cos(angle)),
+        y = Math.round(40 + 33 * Math.sin(angle));
+      // Bright near the tip, thinning out behind it.
+      if (t < 30 || t % 2)
+        p.rect(x, y, t < 18 ? 2 : 1, t < 18 ? 2 : 1, t < 24 ? "k" : "g");
+    }
+  const staff = new Pixels(80, 80)
+    .rect(38, 6, 4, 68, "i")
+    .rect(41, 6, 1, 68, "l")
+    .rect(37, 5, 6, 10, "g")
+    .rect(37, 65, 6, 10, "g")
+    .rect(37, 5, 2, 10, "k")
+    .rect(37, 65, 2, 10, "k")
+    .rect(37, 16, 6, 2, "j")
+    .rect(37, 62, 6, 2, "j")
+    // Both fists closed round the middle.
+    .ellipse(35, 33, 10, 7, "u")
+    .ellipse(35, 41, 10, 7, "u")
+    .rect(37, 34, 4, 2, "m")
+    .rect(37, 42, 4, 2, "m")
+    .outline("o")
+    .grid();
+  staff.forEach((row, y) =>
+    [...row].forEach((cell, x) => {
+      if (cell !== ".") p.dot(x, y, cell);
+    }),
+  );
+  return p.grid();
+}
+
+/**
  * In the air he is one drawing: a lunge to the right, staff levelled ahead,
  * tail and scarf streaming behind.
  */
@@ -681,7 +726,41 @@ const cheer = (reach: number, lift: number) => ({
     head: { angle: -3 },
   },
 });
+const TURNS = [0, 45, 90, 135, 180, 225, 270, 315];
+/** The staff whirling in front of him, hands together at its middle. */
+const flourish: Clip = {
+  frames: TURNS.map((angle, n) => ({
+    duration: 70,
+    ...(n % 4 === 2 ? { expression: "happy" as const } : {}),
+    bones: {
+      prop: { angle },
+      body: { y: n % 4 < 2 ? 0 : 1 },
+      leftArm: { angle: -23 },
+      rightArm: { angle: 23 },
+      leftLeg: { angle: 9 },
+      rightLeg: { angle: -9 },
+    },
+  })),
+};
+/** The staff whirling above his head, knees bent, weight shifting in time. */
+const overhead: Clip = {
+  frames: TURNS.map((angle, n) => ({
+    duration: 80,
+    expression: "happy" as const,
+    bones: {
+      prop: { angle, y: -34 },
+      body: { y: 4 },
+      leftArm: { angle: 195 },
+      rightArm: { angle: -195 },
+      head: { angle: n < 4 ? -3 : 3 },
+      leftLeg: { angle: n < 4 ? 24 : 18 },
+      rightLeg: { angle: n < 4 ? -18 : -24 },
+    },
+  })),
+};
 const clips: Partial<Record<Pose, Clip>> = {
+  jump: flourish,
+  dance: overhead,
   fly: { frames: [charge(-2), charge(-4), charge(-3), charge(-1)] },
   swim: { frames: [glide(-1), glide(-3), glide(-2)] },
   sit: { frames: [stance(3, 0, false), stance(4, 0, false)] },
@@ -696,7 +775,7 @@ export function wukong(): PixelCharacter {
   const ground = { poses: GROUNDED };
   const parts: Part[] = [
     part("tail", "body", 6, 54, tail(), ground),
-    part("staff", "body", 10, 18, staff(), ground),
+    part("staff", "body", 10, 18, staff(), { poses: SHEATHED }),
     part("left-leg", "leftLeg", 32, 68, leg(), ground),
     part("right-leg", "rightLeg", 46, 68, leg(), ground),
     part("skirt", "body", 31, 62, skirt(), {
@@ -722,6 +801,7 @@ export function wukong(): PixelCharacter {
         happy: face("happy"),
       },
     }),
+    part("spinning-staff", "prop", 8, 34, spinningStaff(), { poses: SPINNING }),
     part("cloud", "root", -4, 102, cloud(), { poses: AIRBORNE }),
     part("lunge", "body", -15, 26, lunge(), { poses: AIRBORNE }),
   ];
@@ -741,6 +821,8 @@ export function wukong(): PixelCharacter {
       rightArm: { x: 65, y: 41 },
       leftLeg: { x: 41, y: 70 },
       rightLeg: { x: 55, y: 70 },
+      // Where his hands meet in front of him.
+      prop: { x: 48, y: 74 },
     },
     traits: { movement: "fly" },
     lines: { pet: "Hm. Again.", play: "Try to keep up." },

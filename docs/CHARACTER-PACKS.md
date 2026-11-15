@@ -18,7 +18,7 @@ Up to 12 packs are kept, each at most 400 kB. A pack that fails a check is refus
 
 Everything is drawn on a 64 × 80 pixel canvas. Parts are positioned in a 48 × 64 authoring space that sits 8 pixels in from the left and 12 down from the top, so `x: 0, y: 0` is canvas pixel (8, 12). Keep a one-pixel empty margin around the canvas in every pose.
 
-Each part hangs from one of seven bones. A pose moves and turns bones; parts follow.
+Each part hangs from one of eight bones. A pose moves and turns bones; parts follow.
 
 | Bone | Pivot (authoring space) | Follows |
 | --- | --- | --- |
@@ -29,6 +29,9 @@ Each part hangs from one of seven bones. A pose moves and turns bones; parts fol
 | `rightArm` | 33, 33 | `body` |
 | `leftLeg` | 20, 48 | `root` |
 | `rightLeg` | 28, 48 | `root` |
+| `prop` | 24, 40 | `body` |
+
+`prop` is for something held. Nothing uses it unless a part is attached to it, and it turns about its own pivot, so a clip can spin a staff, twirl an umbrella or swing a lantern without the arms having to carry the motion. Wukong's staff comes off his back and whirls this way when he plays and when music is on.
 
 Feet rest at about `y: 61`. Parts are drawn in the order listed, later ones on top.
 

@@ -8,7 +8,7 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 
 ## What works
 
-- Five original pixel characters, including Wukong: an armoured warrior at double pixel detail with adult proportions, who lunges through the air on a cloud, staff levelled.
+- Five original pixel characters, including Wukong: an armoured warrior at double pixel detail with adult proportions, who lunges through the air on a cloud, staff levelled, and whirls that staff in his hands when he plays or hears music.
 - **Bring your own character.** A character is one data-only JSON pack: add packs, share any character as a pack, and edit it. See [character packs](docs/CHARACTER-PACKS.md).
 - A character workshop with palette controls, four directions, and sitting/waving pose previews.
 - Pet, play, rest, and wake interactions.

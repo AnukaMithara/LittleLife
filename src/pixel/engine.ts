@@ -22,7 +22,15 @@ export type Expression = "normal" | "blink" | "closed" | "happy";
 export type Grid = readonly string[];
 export type Palette = Record<string, string>;
 export type Bone =
-  "root" | "body" | "head" | "leftArm" | "rightArm" | "leftLeg" | "rightLeg";
+  | "root"
+  | "body"
+  | "head"
+  | "leftArm"
+  | "rightArm"
+  | "leftLeg"
+  | "rightLeg"
+  /** Something held: it turns about its own middle, wherever the hands are. */
+  | "prop";
 export interface Transform {
   x?: number;
   y?: number;
@@ -79,6 +87,7 @@ export const BONES = [
   "rightArm",
   "leftLeg",
   "rightLeg",
+  "prop",
 ] as const;
 export const EXPRESSIONS = ["normal", "blink", "closed", "happy"] as const;
 export interface Frame {
@@ -409,6 +418,7 @@ const RIG: Record<Bone, { parent?: Bone; x: number; y: number }> = {
   rightArm: { parent: "body", x: 33, y: 33 },
   leftLeg: { parent: "root", x: 20, y: 48 },
   rightLeg: { parent: "root", x: 28, y: 48 },
+  prop: { parent: "body", x: 24, y: 40 },
 };
 type Matrix = [number, number, number, number, number, number];
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
