@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CHARACTERS } from "../src/pixel/art";
+import { BUILTIN as CHARACTERS } from "../src/pixel/characters";
 import { restoreAppearance } from "../src/pixel/appearance";
 import {
-  CLIPS,
+  clipFor,
   compose,
   FACINGS,
   HEIGHT,
@@ -34,7 +34,7 @@ describe("pixel characters and shared poses", () => {
       for (const pose of POSES)
         for (const facing of FACINGS) {
           let time = 0;
-          for (const frame of CLIPS[pose].frames) {
+          for (const frame of clipFor(pose, character).frames) {
             const grid = compose(character, pose, facing, time + 1);
             const name = `${character.id}/${pose}/${facing}/${time}`;
             expect(grid.length, name).toBe(HEIGHT);

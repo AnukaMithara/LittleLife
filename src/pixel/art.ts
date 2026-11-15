@@ -7,7 +7,7 @@ import {
 } from "./engine";
 
 /** Original pixel art made from drawing instructions, not imported bitmap assets. */
-class Pixels {
+export class Pixels {
   private cells: string[][];
   constructor(
     readonly width: number,
@@ -58,7 +58,7 @@ class Pixels {
     return this.cells.map((row) => row.join(""));
   }
 }
-const base: Palette = {
+export const base: Palette = {
   o: "#292534",
   s: "#e9b18d",
   t: "#b87c64",
@@ -77,7 +77,7 @@ const base: Palette = {
   f: "#f3f0ff",
   e: "#222131",
 };
-const part = (
+export const part = (
   id: string,
   bone: Part["bone"],
   x: number,
@@ -107,7 +107,7 @@ function head(profile = false) {
     .rect(11, 15, 2, 1, "t")
     .grid();
 }
-function face(
+export function face(
   expression: "normal" | "blink" | "closed" | "happy",
   profile = false,
 ): Grid {
@@ -215,7 +215,7 @@ function hair(
   if (view === "right") p.rect(3, 13, 6, 10, "v").rect(4, 3, 10, 10, "w");
   return p.grid();
 }
-function eyesPart(): Part {
+export function eyesPart(): Part {
   return part("expression", "head", 12, 9, face("normal"), {
     views: { back: [], right: face("normal", true) },
     expressions: {

@@ -82,7 +82,7 @@ export class PixelPlayer {
   private draw() {
     const s = this.state;
     if (!s) return;
-    const sample = samplePose(s.pose, this.elapsed, s.still);
+    const sample = samplePose(s.pose, this.elapsed, s.still, s.character);
     const key = [
       s.character.id,
       s.pose,

@@ -27,13 +27,11 @@ Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account
 
 ## Pixel engine: implemented
 
-Code-defined pixel parts and a shared rig now drive four original characters, four facings, twelve pose clips, expression variants, outfit/accent palettes, integer Canvas scaling, and saved appearance. The workshop previews poses without changing the behavioral engine. See PIXEL-ENGINE.md.
+Code-defined pixel parts and a shared rig now drive five original characters, four facings, twelve pose clips, expression variants, outfit/accent palettes, integer Canvas scaling, and saved appearance. The workshop previews poses without changing the behavioral engine. See PIXEL-ENGINE.md.
 
-## Bring your own little friend: future imports
+## Bring your own little friend
 
-- Versioned character-pack manifest with supported actions and attribution/license.
-- Validated import/export of code-independent pixel-grid character data, with asset bounds and licenses.
-- Strict asset limits and no executable scripts in character packs.
-- Build a freehand pixel/part editor only after the pack contract is established.
+- Implemented: a versioned, data-only character pack with author and license; validated import and export; per-character clips, pose-only parts, preferred movement and lines; strict limits and no executable content. See CHARACTER-PACKS.md.
+- Next: a freehand pixel/part editor now that the pack contract exists, then a way to find other people's packs.
 
 No accounts or hosted service are required for the core companion.

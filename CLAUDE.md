@@ -30,6 +30,7 @@ cargo test --lib --manifest-path src-tauri/Cargo.toml
 | `src/main.ts` | DOM, timers, persistence; wires everything together |
 | `src/desktop.ts`, `src/roaming.ts` | Bridge to native commands and events |
 | `src/pixel/` | Rig, pose clips, characters, Canvas player |
+| `src/pixel/pack.ts`, `registry.ts` | Character pack format (untrusted JSON in, checked character out) and the list of built-in plus imported characters |
 | `src-tauri/src/desktop.rs` | Window, tray, the `presence` thread, macOS panel/overlay |
 | `src-tauri/src/motion.rs` | Pure movement across displays |
 | `src-tauri/src/sense.rs` | Front app, sound, idle time → `Activity` |
@@ -45,6 +46,7 @@ cargo test --lib --manifest-path src-tauri/Cargo.toml
 - **Never hold the `Desktop` session lock across a window call** in Rust. Window getters wait for the main thread, which may be waiting for that lock.
 - **Roaming units differ by platform.** macOS uses logical points, Windows physical pixels (`units`, `place`, `roam_areas` in `desktop.rs`). Keep `motion.rs` unit-agnostic.
 - **Native protocol changes touch four places:** the Rust command/event, `src/desktop.ts`, `e2e/native-mock.ts`, and the `generate_handler!` list in `lib.rs`.
+- **Characters are plug and play, and packs are untrusted.** Anything a built-in character needs must be expressible in a pack (`tests/pack.test.ts` round-trips every built-in). New pack fields go through `parsePack` with limits, and pack text reaches the page only as `textContent`, never HTML. Update `docs/CHARACTER-PACKS.md` with the format.
 - **Privacy is a feature.** Only the activity *category* may leave `sense.rs`; never app names or window titles. Nothing about the person's activity goes into Jev requests. Document any new observation in README → "What the desktop app looks at".
 - Windows code cannot be built on a Mac here. Keep platform code in small `cfg` modules and say what was not compiled.
 

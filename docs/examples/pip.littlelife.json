@@ -1,0 +1,146 @@
+{
+ "format": "littlelife.character",
+ "version": 1,
+ "id": "pip",
+ "name": "Pip",
+ "title": "POCKET SPROUT",
+ "author": "Your name",
+ "license": "CC0-1.0",
+ "palette": {
+  "o": "#2b2a3a",
+  "p": "#f2c14e",
+  "q": "#c9952f",
+  "r": "#ffe08a",
+  "a": "#e4572e",
+  "e": "#2b2a3a",
+  "w": "#ffffff"
+ },
+ "parts": [
+  {
+   "id": "left-foot",
+   "bone": "leftLeg",
+   "x": 17,
+   "y": 56,
+   "pixels": ["oooooo", "oqqqqo", "oooooo"]
+  },
+  {
+   "id": "right-foot",
+   "bone": "rightLeg",
+   "x": 25,
+   "y": 56,
+   "pixels": ["oooooo", "oqqqqo", "oooooo"]
+  },
+  {
+   "id": "body",
+   "bone": "body",
+   "x": 14,
+   "y": 38,
+   "pixels": [
+    "....oooooooooooo....",
+    "..oopppppppppppqoo..",
+    ".oprrrpppppppppppqo.",
+    ".oprrpppppppppppqqo.",
+    "opprpppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppppqqo",
+    "oppppppppppppppqqqqo",
+    ".oppppppppppppqqqqo.",
+    ".opppppppppppqqqqqo.",
+    "..ooqqqqqqqqqqqqoo..",
+    "....oooooooooooo...."
+   ],
+   "views": {
+    "back": [
+     "....oooooooooooo....",
+     "..ooqqqqqqqqqqqqoo..",
+     ".oqqqqqqqqqqqqqqqqo.",
+     ".oqqqqqqqqqqqqqqqqo.",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     "oqqqqqqqqqqqqqqqqqqo",
+     ".oqqqqqqqqqqqqqqqqo.",
+     ".oqqqqqqqqqqqqqqqqo.",
+     "..ooqqqqqqqqqqqqoo..",
+     "....oooooooooooo...."
+    ]
+   }
+  },
+  {
+   "id": "sprout",
+   "bone": "head",
+   "x": 21,
+   "y": 31,
+   "pixels": ["..oo..", ".oaao.", "oaaaao", ".oaao.", "..oo..", "..oo..", "..oo.."]
+  },
+  {
+   "id": "face",
+   "bone": "body",
+   "x": 18,
+   "y": 44,
+   "pixels": ["ee........ee", "ew........ew", "ee........ee", "............", "....eeee...."],
+   "views": {
+    "back": [],
+    "right": ["......ee....", "......ew....", "......ee....", "............", "........eee."]
+   },
+   "expressions": {
+    "blink": ["............", "ee........ee", "............", "............", "....eeee...."],
+    "closed": ["............", "ee........ee", "............", "............", "....eeee...."],
+    "happy": ["............", "ee........ee", "e.e......e.e", "............", "...eeeeee..."]
+   }
+  },
+  {
+   "id": "balloon",
+   "bone": "root",
+   "x": 30,
+   "y": 14,
+   "poses": ["fly"],
+   "pixels": [
+    "..oooo..",
+    ".oaaaao.",
+    "oawaaaao",
+    "oaaaaaao",
+    "oaaaaaao",
+    ".oaaaao.",
+    "..oooo..",
+    "...oo...",
+    "...o....",
+    "...o....",
+    "..o.....",
+    "..o.....",
+    ".o......",
+    ".o......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o.......",
+    "o......."
+   ]
+  }
+ ],
+ "clips": {
+  "fly": {
+   "frames": [
+    { "duration": 400, "bones": { "root": { "y": -3 }, "body": { "angle": 4 } } },
+    { "duration": 400, "expression": "happy", "bones": { "root": { "y": -5 }, "body": { "angle": -4 } } }
+   ]
+  }
+ },
+ "traits": { "movement": "fly" },
+ "lines": { "pet": "Squish!", "play": "Up we go!" }
+}

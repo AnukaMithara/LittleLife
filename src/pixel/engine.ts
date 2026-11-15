@@ -35,6 +35,8 @@ export interface Part {
   y: number;
   pixels: Grid;
   attachments?: Partial<Record<Pose, Bone>>;
+  /** Drawn only in these poses, such as a cloud that appears for flying. */
+  poses?: readonly Pose[];
   views?: Partial<Record<"right" | "back", Grid>>;
   expressions?: Partial<Record<Expression, Grid>>;
   profileExpressions?: Partial<Record<Expression, Grid>>;
@@ -45,7 +47,27 @@ export interface PixelCharacter {
   title: string;
   palette: Palette;
   parts: readonly Part[];
+  /** This character's own version of a pose, replacing the shared clip. */
+  clips?: Partial<Record<Pose, Clip>>;
+  traits?: {
+    /** How it likes to get around the desktop; chosen when the character is picked. */
+    movement?: "walk" | "fly" | "swim";
+  };
+  /** What it says when petted or played with. */
+  lines?: { pet?: string; play?: string };
+  author?: string;
+  license?: string;
 }
+export const BONES = [
+  "root",
+  "body",
+  "head",
+  "leftArm",
+  "rightArm",
+  "leftLeg",
+  "rightLeg",
+] as const;
+export const EXPRESSIONS = ["normal", "blink", "closed", "happy"] as const;
 export interface Frame {
   duration: number;
   bones?: Partial<Record<Bone, Transform>>;
@@ -413,12 +435,19 @@ function boneMatrix(
   cache[bone] = result;
   return result;
 }
+export function clipFor(
+  pose: Pose,
+  character?: Pick<PixelCharacter, "clips">,
+): Clip {
+  return character?.clips?.[pose] ?? CLIPS[pose];
+}
 export function samplePose(
   pose: Pose,
   elapsed: number,
   still = false,
+  character?: Pick<PixelCharacter, "clips">,
 ): { frame: Frame; expression: Expression; index: number } {
-  const frames = CLIPS[pose].frames;
+  const frames = clipFor(pose, character).frames;
   const duration = frames.reduce((sum, f) => sum + f.duration, 0);
   let time =
     still || !Number.isFinite(elapsed) ? 0 : Math.max(0, elapsed) % duration;
@@ -458,10 +487,16 @@ export function compose(
   const output = Array.from({ length: HEIGHT }, () =>
     Array<string>(WIDTH).fill("."),
   );
-  const { frame, expression, index } = samplePose(pose, elapsed, still);
+  const { frame, expression, index } = samplePose(
+    pose,
+    elapsed,
+    still,
+    character,
+  );
   const cache: Partial<Record<Bone, Matrix>> = {};
   const view = facing === "left" ? "right" : facing;
   for (const part of character.parts) {
+    if (part.poses && !part.poses.includes(pose)) continue;
     const grid = partGrid(part, view, expression);
     if (!grid.length) continue;
     const m = boneMatrix(part.attachments?.[pose] ?? part.bone, frame, cache);
@@ -559,6 +594,13 @@ export function validateCharacter(character: PixelCharacter): void {
       throw new Error(`Missing effect palette color: ${token}`);
   if (!character.parts.length || character.parts.length > 40)
     throw new Error("Use 1–40 pixel parts.");
+  for (const [pose, clip] of Object.entries(character.clips ?? {})) {
+    if (!POSES.includes(pose as Pose) || !clip.frames.length)
+      throw new Error("Invalid pose clip.");
+    // A clip with no length would never advance.
+    if (clip.frames.some((f) => !(f.duration >= 1)))
+      throw new Error("Invalid frame duration.");
+  }
   const ids = new Set<string>();
   for (const part of character.parts) {
     if (ids.has(part.id)) throw new Error("Pixel part IDs must be unique.");
@@ -569,7 +611,8 @@ export function validateCharacter(character: PixelCharacter): void {
       !Object.hasOwn(RIG, part.bone) ||
       Object.values(part.attachments ?? {}).some(
         (bone) => !Object.hasOwn(RIG, bone),
-      )
+      ) ||
+      (part.poses ?? []).some((pose) => !POSES.includes(pose))
     )
       throw new Error("Invalid part attachment.");
     const grids = [

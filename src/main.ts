@@ -1,7 +1,9 @@
 import "./style.css";
 import { Roamer } from "./roaming";
 import { character } from "./character";
-import { CHARACTERS } from "./pixel/art";
+import { BUILTIN } from "./pixel/characters";
+import { PackError, writePack } from "./pixel/pack";
+import { PACKS_KEY, Registry } from "./pixel/registry";
 import { APPEARANCE_KEY, restoreAppearance } from "./pixel/appearance";
 import { FACINGS, POSES, type Facing, type Pose } from "./pixel/engine";
 import { PixelPlayer } from "./pixel/player";
@@ -72,7 +74,7 @@ app.innerHTML = `
       <div class="vitals"><div><div class="vital-label"><span>Energy</span><span id="energy-value"></span></div><div class="meter" role="meter" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" id="energy-meter"><span id="energy-bar"></span></div></div><div><div class="vital-label"><span>Your bond</span><span id="bond-value"></span></div><div class="meter bond" role="meter" aria-label="Bond" aria-valuemin="0" aria-valuemax="100" id="bond-meter"><span id="bond-bar"></span></div></div></div>
       <div class="actions"><button id="pet-action"><span aria-hidden="true">♡</span> Pet</button><button id="play"><span aria-hidden="true">✧</span> Play</button><button id="rest"><span aria-hidden="true">☾</span> Rest</button></div>
       <div class="bottom-row"><span id="bond-label">Getting acquainted</span><button id="settings-toggle" aria-expanded="false" aria-controls="settings">Little settings <span>⚙</span></button></div>
-      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Never reads your screen, keystrokes or files. In the desktop app, your friend can notice the kind of app in front; that stays on this device and can be turned off below.</p><fieldset class="care-settings"><legend>Gentle reminders</legend><label class="toggle"><span>Remind me to look after myself<small>Ignore one for long enough and your friend gets cross</small></span><input type="checkbox" id="care-enabled"/></label><div class="care-grid"><label for="care-water">Drink water every</label><input id="care-water" type="number" min="0" max="240" step="5"/><span>min</span><label for="care-eyes">Rest my eyes every</label><input id="care-eyes" type="number" min="0" max="240" step="5"/><span>min</span><label for="care-break">Take a break every</label><input id="care-break" type="number" min="0" max="240" step="5"/><span>min</span></div><p class="settings-note" id="care-note">0 turns one off. Click your friend or Done when you have done it. In the desktop app, three minutes away counts as a break, and reminders wait during calls and videos.</p></fieldset><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select">${CHARACTERS.map((c) => `<option value="${c.id}">${c.name} · ${c.title.toLowerCase()}</option>`).join("")}</select></div><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="desktop-settings" id="desktop-settings" hidden><legend>Desktop companion</legend><p class="settings-note">Companion mode shows only your character. Double-click or right-click it, or use the tray, to open these controls. Drag the character to reposition it.</p><label class="toggle"><span>Roam around the desktop</span><input id="desktop-roaming" type="checkbox" checked/></label><label for="desktop-movement">Movement</label><select id="desktop-movement"><option value="walk">Walking</option><option value="fly">Flying</option><option value="swim">Swimming</option></select><label class="toggle"><span>Keep above other windows</span><input id="desktop-top" type="checkbox" checked/></label><label class="toggle"><span>Notice what I'm doing<small>Coding, music, a video or a call changes how your friend behaves. Only the kind of app in front, sound playing and time since your last input are checked.</small></span><input id="desktop-awareness" type="checkbox" checked/></label><button type="button" id="desktop-pin" class="pause-button">Compact and let clicks pass through</button><p class="settings-note">Click-through applies to the entire companion. To pet or move it again, choose <strong>Interact / restore clicks</strong> in the LittleLife tray or menu-bar icon.</p><div class="desktop-actions"><button type="button" id="desktop-hide">Hide to tray</button><button type="button" id="desktop-reset">Reset position</button></div><p id="desktop-status" class="settings-note" role="status"></p></fieldset><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
+      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Never reads your screen, keystrokes or files. In the desktop app, your friend can notice the kind of app in front; that stays on this device and can be turned off below.</p><fieldset class="care-settings"><legend>Gentle reminders</legend><label class="toggle"><span>Remind me to look after myself<small>Ignore one for long enough and your friend gets cross</small></span><input type="checkbox" id="care-enabled"/></label><div class="care-grid"><label for="care-water">Drink water every</label><input id="care-water" type="number" min="0" max="240" step="5"/><span>min</span><label for="care-eyes">Rest my eyes every</label><input id="care-eyes" type="number" min="0" max="240" step="5"/><span>min</span><label for="care-break">Take a break every</label><input id="care-break" type="number" min="0" max="240" step="5"/><span>min</span></div><p class="settings-note" id="care-note">0 turns one off. Click your friend or Done when you have done it. In the desktop app, three minutes away counts as a break, and reminders wait during calls and videos.</p></fieldset><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select"></select></div><div class="pack-actions"><button id="pack-import" type="button">Add a character…</button><button id="pack-export" type="button">Share this one</button><button id="pack-remove" type="button" hidden>Remove</button><input id="pack-file" type="file" accept=".json,application/json" hidden aria-label="Character pack file"/></div><p class="settings-note" id="pack-status" role="status">Characters are plain data files, never programs. <strong>Share this one</strong> saves the current character as a pack you can edit and add back.</p><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="desktop-settings" id="desktop-settings" hidden><legend>Desktop companion</legend><p class="settings-note">Companion mode shows only your character. Double-click or right-click it, or use the tray, to open these controls. Drag the character to reposition it.</p><label class="toggle"><span>Roam around the desktop</span><input id="desktop-roaming" type="checkbox" checked/></label><label for="desktop-movement">Movement</label><select id="desktop-movement"><option value="walk">Walking</option><option value="fly">Flying</option><option value="swim">Swimming</option></select><label class="toggle"><span>Keep above other windows</span><input id="desktop-top" type="checkbox" checked/></label><label class="toggle"><span>Notice what I'm doing<small>Coding, music, a video or a call changes how your friend behaves. Only the kind of app in front, sound playing and time since your last input are checked.</small></span><input id="desktop-awareness" type="checkbox" checked/></label><button type="button" id="desktop-pin" class="pause-button">Compact and let clicks pass through</button><p class="settings-note">Click-through applies to the entire companion. To pet or move it again, choose <strong>Interact / restore clicks</strong> in the LittleLife tray or menu-bar icon.</p><div class="desktop-actions"><button type="button" id="desktop-hide">Hide to tray</button><button type="button" id="desktop-reset">Reset position</button></div><p id="desktop-status" class="settings-note" role="status"></p></fieldset><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
       <div class="compact-controls"><button id="expand">↗ <span>Open little corner</span></button><button id="move" aria-label="Drag companion" title="Drag companion">↔</button><button id="compact-quit" aria-label="Quit LittleLife">×</button></div>
     </section>
     <footer class="page-footer"><span>Grows on you. Never grows up.</span><span><span id="provider-label">OFFLINE & CONTENT</span> <i class="dot"></i></span></footer>
@@ -94,11 +96,18 @@ try {
 } catch {
   /* Defaults remain usable. */
 }
-let appearance = restoreAppearance(appearanceRaw);
+let packsRaw: string | null = null;
+try {
+  packsRaw = localStorage.getItem(PACKS_KEY);
+} catch {
+  /* Built-in characters remain. */
+}
+const registry = new Registry(BUILTIN, packsRaw);
+let appearance = restoreAppearance(appearanceRaw, (id) => registry.has(id));
 let previewPose: Pose | "auto" = "auto";
 const pixelPlayer = new PixelPlayer($<HTMLCanvasElement>("pixel-character"));
 function selectedCharacter() {
-  return CHARACTERS.find((c) => c.id === appearance.character)!;
+  return registry.get(appearance.character) ?? BUILTIN[0];
 }
 function saveAppearance() {
   try {
@@ -109,8 +118,105 @@ function saveAppearance() {
       "Appearance storage is unavailable. Changes last for this visit.";
   }
 }
+/** The list is built from text nodes: pack names are someone else's words. */
+function listCharacters() {
+  const select = $<HTMLSelectElement>("character-select");
+  select.replaceChildren(
+    ...registry.all().map((c) => {
+      const option = document.createElement("option");
+      option.value = c.id;
+      option.textContent = `${c.name} · ${c.title.toLowerCase()}`;
+      return option;
+    }),
+  );
+}
+function savePacks(): boolean {
+  try {
+    localStorage.setItem(PACKS_KEY, registry.serialize());
+    return true;
+  } catch {
+    return false;
+  }
+}
+/** Switch character, carrying over the default name and its favourite way of moving. */
+function chooseCharacter(id: string) {
+  const previous = selectedCharacter();
+  appearance = { version: 1, character: id, facing: appearance.facing };
+  const next = selectedCharacter();
+  if (state.name === previous.name) {
+    state.name = next.name;
+    if ($<HTMLInputElement>("name").value === previous.name)
+      $<HTMLInputElement>("name").value = state.name;
+  }
+  const movement = next.traits?.movement;
+  if (native && movement && desktopState && desktopState.movement !== movement)
+    void desktopMovement(movement)
+      .then(applyDesktopState)
+      .catch(() => undefined);
+  syncAppearanceControls();
+  saveAppearance();
+  save();
+  render();
+}
+$("pack-import").addEventListener("click", () => $("pack-file").click());
+$("pack-file").addEventListener("change", () => {
+  const input = $<HTMLInputElement>("pack-file");
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  void file
+    .text()
+    .then((source) => {
+      const character = registry.add(source);
+      listCharacters();
+      chooseCharacter(character.id);
+      $("pack-status").textContent = savePacks()
+        ? `${character.name} has joined. Packs stay on this device.`
+        : `${character.name} has joined for this visit; storage is unavailable.`;
+    })
+    .catch((error) => {
+      $("pack-status").textContent =
+        error instanceof PackError
+          ? `That pack could not be added. ${error.message}`
+          : "That file could not be read.";
+    });
+});
+$("pack-remove").addEventListener("click", () => {
+  const character = selectedCharacter();
+  if (!registry.remove(character.id)) return;
+  savePacks();
+  listCharacters();
+  chooseCharacter(BUILTIN[0].id);
+  $("pack-status").textContent = `${character.name} was removed.`;
+});
+$("pack-export").addEventListener("click", () => {
+  const character = selectedCharacter();
+  const source = writePack(character);
+  // The desktop webview has no downloads; the clipboard works in both.
+  if (native) {
+    void navigator.clipboard.writeText(source).then(
+      () => {
+        $("pack-status").textContent =
+          `${character.name}'s pack is on the clipboard. Paste it into a file ending in .json.`;
+      },
+      () => {
+        $("pack-status").textContent = "The clipboard is unavailable.";
+      },
+    );
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(
+    new Blob([source], { type: "application/json" }),
+  );
+  link.download = `${character.id}.littlelife.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  $("pack-status").textContent = `Saved ${link.download}.`;
+});
 function syncAppearanceControls() {
   const character = selectedCharacter();
+  $("pack-remove").hidden = !registry.isImported(character.id);
   $<HTMLSelectElement>("character-select").value = character.id;
   $<HTMLInputElement>("pixel-primary").value =
     appearance.primary ?? character.palette.p;
@@ -119,23 +225,9 @@ function syncAppearanceControls() {
   $<HTMLSelectElement>("pixel-facing").value = appearance.facing;
   $<HTMLSelectElement>("pixel-pose").value = previewPose;
 }
-$("character-select").addEventListener("change", () => {
-  const previous = selectedCharacter();
-  appearance = {
-    version: 1,
-    character: $<HTMLSelectElement>("character-select").value,
-    facing: appearance.facing,
-  };
-  if (state.name === previous.name) {
-    state.name = selectedCharacter().name;
-    if ($<HTMLInputElement>("name").value === previous.name)
-      $<HTMLInputElement>("name").value = state.name;
-  }
-  syncAppearanceControls();
-  saveAppearance();
-  save();
-  render();
-});
+$("character-select").addEventListener("change", () =>
+  chooseCharacter($<HTMLSelectElement>("character-select").value),
+);
 for (const [id, key] of [
   ["pixel-primary", "primary"],
   ["pixel-accent", "accent"],
@@ -170,6 +262,7 @@ $("open-characters").addEventListener("click", () => {
   $<HTMLDetailsElement>("pixel-workshop").open = true;
   $("character-select").focus();
 });
+listCharacters();
 syncAppearanceControls();
 let jevSettingsBusy = false;
 const jev = new JevController(nativeJev, renderJev);
@@ -595,7 +688,13 @@ function care(kind: "pet" | "play" | "rest") {
     if (Date.now() >= overrideUntil) state = interact(state, kind);
     overrideUntil = Date.now() + 4000;
     setAction(kind === "play" ? "jump" : "happy");
-    say(kind === "play" ? "Catch a little joy!" : "My favourite human.", 3500);
+    const lines = selectedCharacter().lines;
+    say(
+      kind === "play"
+        ? (lines?.play ?? "Catch a little joy!")
+        : (lines?.pet ?? "My favourite human."),
+      3500,
+    );
     render();
   }
   save();

@@ -954,3 +954,16 @@ html.companion-mode body {
   width: 100%;
   padding: 5px 6px;
 }
+.pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.pack-actions button {
+  border: 1px solid #dfe5d5;
+  background: #eff3e7;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
