@@ -30,7 +30,7 @@ app.innerHTML = `
       </div>
       <div class="profile"><div><div class="name-line"><h2 id="pet-name">Moss</h2><span class="species">LEAF SPIRIT</span></div><p><span class="status-dot"></span><span id="action-label">Settling in</span></p></div><span class="profile-mark">❋</span></div>
       <div class="vitals"><div><div class="vital-label"><span>Energy</span><span id="energy-value"></span></div><div class="meter" role="meter" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" id="energy-meter"><span id="energy-bar"></span></div></div><div><div class="vital-label"><span>Your bond</span><span id="bond-value"></span></div><div class="meter bond" role="meter" aria-label="Bond" aria-valuemin="0" aria-valuemax="100" id="bond-meter"><span id="bond-bar"></span></div></div></div>
-      <div class="actions"><button id="pet-action"><span>♡</span> Pet</button><button id="play"><span>✧</span> Play</button><button id="rest"><span>☾</span> Rest</button></div>
+      <div class="actions"><button id="pet-action"><span aria-hidden="true">♡</span> Pet</button><button id="play"><span aria-hidden="true">✧</span> Play</button><button id="rest"><span aria-hidden="true">☾</span> Rest</button></div>
       <div class="bottom-row"><span id="bond-label">Getting acquainted</span><button id="settings-toggle" aria-expanded="false" aria-controls="settings">Little settings <span>⚙</span></button></div>
       <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Reacts to your cursor inside this window. No screen reading or background activity tracking.</p></section>
       <div class="compact-controls"><button id="expand">↗ <span>Open little corner</span></button><button id="move" aria-label="Drag companion" title="Drag companion">↔</button><button id="compact-quit" aria-label="Quit LittleLife">×</button></div>
@@ -249,7 +249,7 @@ $("stage").addEventListener("pointermove", (event) => {
       event.clientX - (bounds.x + bounds.width / 2),
       event.clientY - (bounds.y + bounds.height / 2),
     ) < 135;
-  if (cursorNearby && !paused && !resting && Date.now() > overrideUntil)
+  if (cursorNearby && state.energy >= 24 && !paused && !resting && Date.now() > overrideUntil)
     setAction("curious", "Oh! Is that for me?");
 });
 $("stage").addEventListener("pointerleave", () => {
@@ -275,7 +275,7 @@ setInterval(() => {
       const next = resting
         ? "sleep"
         : decide(
-            state,
+            { ...state, reducedMotion: state.reducedMotion || media.matches },
             {
               idleSeconds: (now - lastInteraction) / 1000,
               cursorNearby,

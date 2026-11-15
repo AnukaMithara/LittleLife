@@ -6,6 +6,7 @@ test("care, rest, preferences, rename, reload and compact mode", async ({
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
+  await page.screenshot({ path: 'test-results/littlelife-desktop-preview.png', fullPage: true, animations: 'disabled' });
   await expect(
     page.getByRole("heading", { name: "Moss", exact: true }),
   ).toBeVisible();
@@ -66,6 +67,7 @@ test("mobile fits the viewport and unavailable storage stays usable", async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page.screenshot({ path: 'test-results/littlelife-mobile-preview.png', fullPage: true, animations: 'disabled' });
   await page.getByRole("button", { name: "Little settings" }).click();
   await expect(page.locator("#storage-note")).toContainText(
     "will not be saved",
