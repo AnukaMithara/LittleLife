@@ -153,7 +153,8 @@ async fn evaluate(key: String, observation: &Observation) -> Result<Value, Strin
     Ok(value)
 }
 #[tauri::command]
-pub async fn jev_decide(observation: Observation, service: State<'_, Service>) -> Result<Decision, String> {
+pub async fn jev_decide(observation: Observation, window: tauri::WebviewWindow, service: State<'_, Service>) -> Result<Decision, String> {
+    if !window.is_visible().unwrap_or(false) { return Err("hidden".into()); }
     if !observation.valid() { return Err("invalid_observation".into()); }
     let (key, generation) = {
         let mut s = service.session.lock().await;

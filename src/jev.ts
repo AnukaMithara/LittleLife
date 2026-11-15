@@ -52,6 +52,7 @@ export const OFFLINE_STATUS: JevStatus = {
   retryAfterSeconds: 0,
 };
 export const jevMessages: Record<string, string> = {
+  hidden: "Jev rests while the companion is hidden.",
   offline: "Jev is unreachable. Your friend continues offline.",
   authentication: "The API key was rejected. Jev has been turned off.",
   rate_limited:

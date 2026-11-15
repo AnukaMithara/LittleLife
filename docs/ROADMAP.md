@@ -15,11 +15,11 @@ Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account
 ## Milestone 3: a reliable desktop neighbor
 
 - Real Windows and macOS overlay testing, including transparent hit testing.
-- Tray/menu recovery and a global shortcut before offering hidden or click-through modes.
-- Remember and safely restore window position across monitor changes.
+- Implemented: tray/menu recovery, explicit whole-window click-through, hide/show and single-instance restoration. A global shortcut remains optional follow-up.
+- Implemented: debounced placement/view/always-on-top persistence, scale-aware layout, removed-monitor fallback and tray reset.
 - Respect full-screen applications and presentations.
 - Measure CPU, memory, and power use, including during extended idle periods.
-- Signed Windows installers and signed/notarized macOS builds.
+- Implemented: unsigned Windows setup/portable artifacts and Apple Silicon/Intel DMGs. Signed/notarized public distribution remains a release step.
 - Additional local personality traits, understandable memory, and reset controls.
 
 ## Pixel engine: implemented
