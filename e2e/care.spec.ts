@@ -92,30 +92,49 @@ test("the desktop companion changes its company with what you are doing", async 
   await installNativeMock(page, { compact: true, trayAvailable: true });
   await page.goto("/");
   await expect(page.locator("body")).toHaveClass(/compact/);
-  const sense = (activity: string, audio = false, idleSeconds = 0) =>
-    signal(page, "desktop-activity", { activity, audio, idleSeconds });
+  const sense = (
+    activity: string,
+    audio = false,
+    idleSeconds = 0,
+    media = audio ? "music" : "none",
+  ) =>
+    signal(page, "desktop-activity", { activity, audio, media, idleSeconds });
+  const errands = () =>
+    page.evaluate(() =>
+      (
+        window as unknown as { __littlelifeErrands: () => string[] }
+      ).__littlelifeErrands(),
+    );
   const attention = () =>
     page.evaluate(() =>
       (
         window as unknown as { __littlelifeAttention: () => boolean }
       ).__littlelifeAttention(),
     );
+  // Focused work: off to the nearer corner, to sit quietly out of the way.
   await sense("coding");
   await page.clock.runFor(7000);
-  await expect(pose(page)).toHaveAttribute("data-pose", "idle");
+  await expect(pose(page)).toHaveAttribute("data-pose", "sit");
+  expect(await errands()).toEqual(["aside"]);
   expect(await attention()).toBe(false);
 
-  await sense("video", true);
-  await expect(page.locator("#bubble")).toContainText("watch with you");
+  await sense("video", true, 0, "video");
+  await expect(page.locator("#bubble")).toContainText("from the corner");
   expect(await attention()).toBe(true);
   await page.clock.runFor(7000);
   await expect(pose(page)).toHaveAttribute("data-pose", "sit");
   await expect(page.locator("#bubble")).toBeHidden();
   expect(await attention()).toBe(false);
 
+  // Music behind the work is something to dance to; a video in another window is not.
   await sense("coding", true);
   await page.clock.runFor(7000);
   await expect(pose(page)).toHaveAttribute("data-pose", "dance");
+  await sense("coding", true, 0, "video");
+  await page.clock.runFor(7000);
+  await expect(pose(page)).toHaveAttribute("data-pose", "sit");
+  // Already in its corner: it is not sent there again for every change.
+  expect(await errands()).toEqual(["aside"]);
 
   await sense("away", false, 330);
   await page.clock.runFor(7000);

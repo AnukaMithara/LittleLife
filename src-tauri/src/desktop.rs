@@ -1,6 +1,6 @@
 use crate::motion::{self, Roam};
 use crate::placement::{self, Area, Preferences, COMPACT};
-use crate::sense::{self, Activity};
+use crate::sense::{self, Activity, Media};
 use crate::spaces;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Mutex, time::{Duration, Instant}};
@@ -229,6 +229,76 @@ pub fn desktop_attention(app: AppHandle, active: bool) {
     app.state::<Desktop>().inner.lock().unwrap().attention = active;
 }
 
+/// Send the character somewhere: out of the way in the nearer bottom corner, or over to the pointer.
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Errand { Aside, Come, Settle }
+#[tauri::command]
+pub fn desktop_errand(app: AppHandle, errand: Errand) -> Result<(), String> {
+    let window = app.get_webview_window("main").ok_or("window")?;
+    let displays = roam_areas(&window);
+    let position = window.outer_position().map_err(|_| "window")?;
+    let (x, y) = units(&window, f64::from(position.x), f64::from(position.y));
+    let point = pointer(&window).map(|(point, _)| point);
+    let start = {
+        let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
+        if !s.visible || !s.prefs.compact { return Ok(()); }
+        let mode = s.prefs.movement;
+        if !s.roaming && !s.returning { s.roam.x = x; s.roam.y = y; s.roam.rest(); }
+        let mut jumped = false;
+        let goal = match (errand, point) {
+            (Errand::Aside, _) => motion::corner(&displays, COMPACT, &s.roam),
+            (Errand::Come, Some(point)) => {
+                // On another display: arrive there properly first, then walk over.
+                let here = (s.roam.x + COMPACT.0 / 2.0, s.roam.y + COMPACT.1 / 2.0);
+                if !motion::together(&displays, here, point) { jumped = motion::follow(mode, &displays, COMPACT, &mut s.roam, point, None); }
+                motion::beside(&displays, COMPACT, mode, point)
+            },
+            (Errand::Come, None) => None,
+            // Put down somewhere by hand: only drop to the floor if it was left in the air.
+            (Errand::Settle, _) => { if !s.roaming { s.returning = true; } return Ok(()); },
+        };
+        let Some(goal) = goal else { return Err("monitor".into()); };
+        s.roam.goal = Some(goal);
+        if !s.roaming { s.returning = true; }
+        jumped.then_some((s.roam.x, s.roam.y))
+    };
+    if let Some((x, y)) = start { place(&window, x, y); }
+    Ok(())
+}
+
+/// The character's own menu: things to ask of it, shown where it was right-clicked.
+#[tauri::command]
+pub fn desktop_menu(app: AppHandle, resting: bool, staying: bool) -> Result<(), String> {
+    let window = app.get_webview_window("main").ok_or("window")?;
+    let roaming = state(&app).roaming;
+    let item = |id: &str, text: &str| MenuItem::with_id(&app, id, text, true, None::<&str>);
+    let build = || -> tauri::Result<Menu<tauri::Wry>> {
+        let separator = || tauri::menu::PredefinedMenuItem::separator(&app);
+        Menu::with_items(&app, &[
+            &item("pet:come", "Come here")?,
+            &item("pet:aside", if staying { "Come back out" } else { "Step aside" })?,
+            &item("pet:nap", if resting { "Wake up" } else { "Take a nap" })?,
+            &item("pet:play", "Play")?,
+            &separator()?,
+            &item("pet:roam", if roaming { "Stay where you are" } else { "Roam freely" })?,
+            &item("pet:open", "Open little corner…")?,
+        ])
+    };
+    let menu = build().map_err(|_| "window")?;
+    window.popup_menu(&menu).map_err(|_| "window")?;
+    Ok(())
+}
+/// Choices from the character's menu. The frontend carries them out, as it owns the behavior.
+pub fn menu_event(app: &AppHandle, id: &str) {
+    match id.strip_prefix("pet:") {
+        Some("open") => { let _ = perform(app, Action::Expand, None); },
+        Some("roam") => { let _ = perform(app, Action::Roaming, Some(!state(app).roaming)); },
+        Some(command) => { let _ = app.emit_to("main", "desktop-command", command.to_string()); },
+        None => (),
+    }
+}
+
 /// Whether the companion is awake and free to come after the person between Spaces.
 #[tauri::command]
 pub fn desktop_lively(app: AppHandle, active: bool) {
@@ -240,7 +310,7 @@ pub fn desktop_lively(app: AppHandle, active: bool) {
 struct Motion { direction: i8, falling: bool, moving: bool, peeking: bool }
 #[derive(Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Sensed { activity: Activity, audio: bool, idle_seconds: u32 }
+struct Sensed { activity: Activity, audio: bool, media: Media, idle_seconds: u32 }
 
 /// One quiet background thread: it moves the window while roaming, lets clicks through
 /// everywhere except the character, and looks at the person's activity every few seconds.
@@ -346,8 +416,8 @@ fn presence(app: AppHandle) {
             let now = if awareness {
                 let reading = sense::read();
                 if !sense::own(&reading) { activity = sense::classify(&reading); }
-                Sensed { activity, audio: reading.audio, idle_seconds: (reading.idle_seconds.min(86_400.0) as u32) / 30 * 30 }
-            } else { activity = Activity::Other; Sensed { activity, audio: false, idle_seconds: 0 } };
+                Sensed { activity, audio: reading.audio, media: sense::media(&reading, activity), idle_seconds: (reading.idle_seconds.min(86_400.0) as u32) / 30 * 30 }
+            } else { activity = Activity::Other; Sensed { activity, audio: false, media: Media::None, idle_seconds: 0 } };
             if sensed.as_ref() != Some(&now) { let _ = app.emit_to("main", "desktop-activity", now.clone()); sensed = Some(now); }
         }
     }

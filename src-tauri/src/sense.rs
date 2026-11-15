@@ -15,6 +15,27 @@ pub struct Reading {
     pub title: Option<String>,
     pub idle_seconds: f64,
     pub audio: bool,
+    /// Something is asking the display to stay awake, as a playing video does and music does not.
+    pub screen_awake: bool,
+    /// The application in front fills a whole display.
+    pub fullscreen: bool,
+}
+
+/// What is playing, whatever application is in front.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Media { None, Music, Video }
+
+pub fn media(reading: &Reading, activity: Activity) -> Media {
+    match activity {
+        Activity::Video => Media::Video,
+        Activity::Music => Media::Music,
+        // A call keeps the screen awake and makes sound without being either.
+        Activity::Meeting => Media::None,
+        _ if !reading.audio => Media::None,
+        _ if reading.screen_awake => Media::Video,
+        _ => Media::Music,
+    }
 }
 
 const MEETING: &[&str] = &["zoom", "teams", "webex", "facetime", "skype", "gotomeeting", "google meet"];
@@ -37,7 +58,11 @@ pub fn classify(reading: &Reading) -> Activity {
     let browser = is(BROWSER);
     if is(MEETING) { return Activity::Meeting; }
     // Checked before "away": nobody touches the keyboard during a film.
-    if is(VIDEO) || (browser && (STREAMS.iter().any(|name| title.contains(name)) || (reading.audio && reading.idle_seconds >= 20.0))) {
+    // Sound alone is music. Sound with the screen held awake, filling the display, or
+    // left to play untouched is something being watched.
+    let playing = reading.audio && (reading.screen_awake || reading.fullscreen || reading.idle_seconds >= 20.0);
+    if is(VIDEO) || (browser && (STREAMS.iter().any(|name| title.contains(name)) || playing))
+        || (reading.audio && reading.screen_awake && reading.fullscreen) {
         return Activity::Video;
     }
     if reading.idle_seconds >= AWAY_SECONDS { return Activity::Away; }
@@ -63,8 +88,83 @@ mod platform {
     use objc2::{class, msg_send, rc::autoreleasepool, runtime::AnyObject};
     use std::ffi::{c_char, c_void, CStr};
 
+    type Id = *mut AnyObject;
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    struct Rect { x: f64, y: f64, width: f64, height: f64 }
     #[link(name = "CoreGraphics", kind = "framework")]
-    extern "C" { fn CGEventSourceSecondsSinceLastEventType(state: i32, event: u32) -> f64; }
+    extern "C" {
+        fn CGEventSourceSecondsSinceLastEventType(state: i32, event: u32) -> f64;
+        fn CGWindowListCopyWindowInfo(option: u32, relative_to: u32) -> Id;
+        fn CGGetActiveDisplayList(max: u32, displays: *mut u32, count: *mut u32) -> i32;
+        fn CGDisplayBounds(display: u32) -> Rect;
+    }
+    #[link(name = "IOKit", kind = "framework")]
+    extern "C" { fn IOPMCopyAssertionsByProcess(assertions: *mut Id) -> i32; }
+
+    unsafe fn key(name: &CStr) -> Id { msg_send![class!(NSString), stringWithUTF8String: name.as_ptr()] }
+    unsafe fn entry(dictionary: Id, name: &CStr) -> Id {
+        if dictionary.is_null() { return dictionary; }
+        msg_send![dictionary, objectForKey: key(name)]
+    }
+    unsafe fn real(dictionary: Id, name: &CStr) -> f64 {
+        let value = entry(dictionary, name);
+        if value.is_null() { f64::NAN } else { msg_send![value, doubleValue] }
+    }
+    /// Utilities whose whole job is to keep the screen on say nothing about a video.
+    const KEEPERS: &[&str] = &["caffeinate", "amphetamine", "lungo", "keepingyouawake", "caffeine", "theine", "littlelife"];
+
+    /// Whether some application is holding the display awake, as video playback does.
+    fn screen_awake() -> bool {
+        // SAFETY: the call fills in a retained dictionary of process id to a list of
+        // assertion dictionaries, read through Foundation and released.
+        autoreleasepool(|_| unsafe {
+            let mut all: Id = std::ptr::null_mut();
+            if IOPMCopyAssertionsByProcess(&mut all) != 0 || all.is_null() { return false; }
+            let lists: Id = msg_send![all, allValues];
+            let mut held = false;
+            let processes: usize = if lists.is_null() { 0 } else { msg_send![lists, count] };
+            for i in 0..processes {
+                let list: Id = msg_send![lists, objectAtIndex: i];
+                let total: usize = if list.is_null() { 0 } else { msg_send![list, count] };
+                for j in 0..total {
+                    let assertion: Id = msg_send![list, objectAtIndex: j];
+                    let kind = text(entry(assertion, c"AssertType")).unwrap_or_default();
+                    let owner = text(entry(assertion, c"Process Name")).unwrap_or_default();
+                    let on = real(assertion, c"AssertLevel") != 0.0;
+                    if on && (kind == "preventuseridledisplaysleep" || kind == "nodisplaysleepassertion")
+                        && !KEEPERS.iter().any(|name| owner.contains(name)) { held = true; }
+                }
+            }
+            let _: () = msg_send![all, release];
+            held
+        })
+    }
+    /// Whether a normal window of this process covers a whole display.
+    fn fullscreen(process: i32) -> bool {
+        // SAFETY: public window-list API; only owner, layer and bounds are read, which need
+        // no screen-recording permission. The list is released.
+        autoreleasepool(|_| unsafe {
+            let (mut displays, mut count) = ([0u32; 8], 0u32);
+            if CGGetActiveDisplayList(8, displays.as_mut_ptr(), &mut count) != 0 { return false; }
+            let screens: Vec<Rect> = displays[..(count as usize).min(8)].iter().map(|id| CGDisplayBounds(*id)).collect();
+            // On-screen windows only, without desktop elements.
+            let windows = CGWindowListCopyWindowInfo(1 | 16, 0);
+            if windows.is_null() { return false; }
+            let total: usize = msg_send![windows, count];
+            let mut covers = false;
+            for i in 0..total {
+                let window: Id = msg_send![windows, objectAtIndex: i];
+                if real(window, c"kCGWindowOwnerPID") != f64::from(process) || real(window, c"kCGWindowLayer") != 0.0 { continue; }
+                let bounds = entry(window, c"kCGWindowBounds");
+                let (x, y, w, h) = (real(bounds, c"X"), real(bounds, c"Y"), real(bounds, c"Width"), real(bounds, c"Height"));
+                covers |= screens.iter().any(|s| (x - s.x).abs() <= 1.0 && (y - s.y).abs() <= 1.0
+                    && (w - s.width).abs() <= 1.0 && (h - s.height).abs() <= 1.0);
+            }
+            let _: () = msg_send![windows, release];
+            covers
+        })
+    }
     #[repr(C)]
     struct Address { selector: u32, scope: u32, element: u32 }
     #[link(name = "CoreAudio", kind = "framework")]
@@ -90,7 +190,7 @@ mod platform {
         let utf8: *const c_char = msg_send![string, UTF8String];
         (!utf8.is_null()).then(|| CStr::from_ptr(utf8).to_string_lossy().to_lowercase())
     }
-    fn front() -> Option<String> {
+    fn front() -> Option<(String, i32)> {
         // SAFETY: plain property reads on thread-safe AppKit objects, kept inside one pool.
         autoreleasepool(|_| unsafe {
             let workspace: *mut AnyObject = msg_send![class!(NSWorkspace), sharedWorkspace];
@@ -99,7 +199,8 @@ mod platform {
             if app.is_null() { return None; }
             let id = text(msg_send![app, bundleIdentifier]).unwrap_or_default();
             let name = text(msg_send![app, localizedName]).unwrap_or_default();
-            Some(format!("{id} {name}"))
+            let process: i32 = msg_send![app, processIdentifier];
+            Some((format!("{id} {name}"), process))
         })
     }
     pub fn pressed() -> bool {
@@ -110,7 +211,15 @@ mod platform {
     pub fn read() -> Reading {
         // SAFETY: a read-only query; 0 is the combined session state and !0 means any input.
         let idle = unsafe { CGEventSourceSecondsSinceLastEventType(0, !0) };
-        Reading { app: front(), title: None, idle_seconds: if idle.is_finite() { idle.max(0.0) } else { 0.0 }, audio: audio() }
+        let front = front();
+        let audio = audio();
+        Reading {
+            // Only worth asking about the screen while something is making sound.
+            screen_awake: audio && screen_awake(),
+            fullscreen: audio && front.as_ref().is_some_and(|(_, process)| fullscreen(*process)),
+            app: front.map(|(name, _)| name), title: None,
+            idle_seconds: if idle.is_finite() { idle.max(0.0) } else { 0.0 }, audio,
+        }
     }
 }
 
@@ -152,7 +261,7 @@ mod platform {
             let mut input = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
             if GetLastInputInfo(&mut input) != 0 { f64::from(GetTickCount().wrapping_sub(input.dwTime)) / 1000.0 } else { 0.0 }
         };
-        Reading { app, title, idle_seconds: idle, audio: false }
+        Reading { app, title, idle_seconds: idle, audio: false, screen_awake: false, fullscreen: false }
     }
 }
 
@@ -166,7 +275,7 @@ mod platform {
 mod tests {
     use super::*;
     fn reading(app: &str, title: &str, idle: f64, audio: bool) -> Reading {
-        Reading { app: Some(app.into()), title: (!title.is_empty()).then(|| title.into()), idle_seconds: idle, audio }
+        Reading { app: Some(app.into()), title: (!title.is_empty()).then(|| title.into()), idle_seconds: idle, audio, ..Default::default() }
     }
     #[test]
     fn recognizes_common_work_and_play() {
@@ -187,6 +296,27 @@ mod tests {
         assert_eq!(classify(&reading("com.colliderli.iina iina", "", 2400.0, true)), Activity::Video);
         assert_eq!(classify(&reading("com.microsoft.vscode code", "", 301.0, false)), Activity::Away);
         assert_eq!(classify(&Reading::default()), Activity::Other);
+    }
+    #[test]
+    fn tells_a_video_from_music_while_working() {
+        let editor = |audio, screen_awake| Reading { audio, screen_awake, ..reading("com.microsoft.vscode code", "", 2.0, false) };
+        // Music behind the editor: still coding, with music on.
+        assert_eq!(classify(&editor(true, false)), Activity::Coding);
+        assert_eq!(media(&editor(true, false), Activity::Coding), Media::Music);
+        // A video playing in another window keeps the screen awake: still coding, with a video on.
+        assert_eq!(classify(&editor(true, true)), Activity::Coding);
+        assert_eq!(media(&editor(true, true), Activity::Coding), Media::Video);
+        assert_eq!(media(&editor(false, false), Activity::Coding), Media::None);
+        // In the browser, a held-awake or full-screen player is being watched even while the pointer moves.
+        let browser = Reading { audio: true, screen_awake: true, ..reading("com.brave.browser brave browser", "", 1.0, false) };
+        assert_eq!(classify(&browser), Activity::Video);
+        let full = Reading { audio: true, fullscreen: true, ..reading("com.brave.browser brave browser", "", 1.0, false) };
+        assert_eq!(classify(&full), Activity::Video);
+        // Any application filling the screen with sound and the display held awake is a film.
+        let unknown = Reading { audio: true, screen_awake: true, fullscreen: true, ..reading("com.example.player player", "", 1.0, false) };
+        assert_eq!(classify(&unknown), Activity::Video);
+        let call = Reading { audio: true, screen_awake: true, ..reading("us.zoom.xos zoom.us", "", 1.0, false) };
+        assert_eq!((classify(&call), media(&call, Activity::Meeting)), (Activity::Meeting, Media::None));
     }
     #[test]
     fn ignores_its_own_window() {

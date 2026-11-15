@@ -27,6 +27,7 @@ cargo test --lib --manifest-path src-tauri/Cargo.toml
 | `src/engine.ts` | Pure pet state and the `decide` behavior function |
 | `src/mood.ts` | Activity category → the company that suits it |
 | `src/reminders.ts` | Care reminders and their escalation, pure |
+| `src/waiting.ts` | Sent aside, and when it asks to come back, pure |
 | `src/main.ts` | DOM, timers, persistence; wires everything together |
 | `src/desktop.ts`, `src/roaming.ts` | Bridge to native commands and events |
 | `src/pixel/` | Rig, pose clips, characters, Canvas player |

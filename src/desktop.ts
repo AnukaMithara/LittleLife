@@ -74,6 +74,16 @@ export function desktopError(error: unknown): string {
 export function desktopRoam(active: boolean): Promise<void> {
   return invoke("desktop_roam", { active });
 }
+/** Send it to the nearer bottom corner, over to the pointer, or let it drop where it was put. */
+export function desktopErrand(
+  errand: "aside" | "come" | "settle",
+): Promise<void> {
+  return native ? invoke("desktop_errand", { errand }) : Promise.resolve();
+}
+/** Show the character's own menu where it was right-clicked. */
+export function desktopMenu(resting: boolean, staying: boolean): Promise<void> {
+  return invoke("desktop_menu", { resting, staying });
+}
 /** Awake and free to move: it may come after the person when they change Space. */
 export function desktopLively(active: boolean): Promise<void> {
   return native ? invoke("desktop_lively", { active }) : Promise.resolve();
@@ -95,6 +105,8 @@ export interface DesktopSignals {
   cursor(near: boolean): void;
   /** It has just come after the person to another Space or display. */
   followed(): void;
+  /** Something chosen from the character's menu. */
+  command(name: string): void;
   activity(sense: Sense): void;
 }
 /** Native observations: where the character is heading, the pointer, and the person's activity. */
@@ -104,6 +116,9 @@ export async function connectSignals(
   const stops = await Promise.all([
     listen<DesktopMotion>("desktop-motion", (e) => signals.motion(e.payload)),
     listen("desktop-followed", () => signals.followed()),
+    listen<string>("desktop-command", (e) =>
+      signals.command(String(e.payload)),
+    ),
     listen<boolean>("desktop-cursor", (e) =>
       signals.cursor(e.payload === true),
     ),

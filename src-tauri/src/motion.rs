@@ -32,17 +32,19 @@ pub struct Roam {
     pub gate: Option<f64>,
     /// The display the character was last on, to notice when it reaches another.
     pub area: Option<usize>,
+    /// Somewhere it has been sent: it goes straight there and stops.
+    pub goal: Option<(f64, f64)>,
     pub seed: u64,
 }
 
 impl Roam {
     pub fn new(seed: u64) -> Self {
-        Self { x: 0.0, y: 0.0, dx: 1.0, phase: 0.0, fall: 0.0, target: None, transit: Transit::None, peek: 0.0, gate: None, area: None, seed: seed | 1 }
+        Self { x: 0.0, y: 0.0, dx: 1.0, phase: 0.0, fall: 0.0, target: None, transit: Transit::None, peek: 0.0, gate: None, area: None, goal: None, seed: seed | 1 }
     }
     pub fn falling(&self) -> bool { self.fall > 0.0 }
     pub fn peeking(&self) -> bool { self.peek > 0.0 }
     /// Forget any half-finished crossing, as after being picked up and put down.
-    pub fn rest(&mut self) { self.fall = 0.0; self.target = None; self.transit = Transit::None; self.peek = 0.0; self.gate = None; self.area = None; }
+    pub fn rest(&mut self) { self.fall = 0.0; self.target = None; self.transit = Transit::None; self.peek = 0.0; self.gate = None; self.area = None; self.goal = None; }
     fn pause(&mut self) { self.gate = None; self.peek = 1.0 + self.roll() * 0.9; }
     fn roll(&mut self) -> f64 {
         self.seed ^= self.seed << 13; self.seed ^= self.seed >> 7; self.seed ^= self.seed << 17;
@@ -56,6 +58,9 @@ const WALK: f64 = 38.0;
 const GRAVITY: f64 = 1600.0;
 /// How much of the window is in view when the character stops to peek: about half its face.
 const PEEK: f64 = 96.0;
+/// The character is drawn in the middle of its window, so the window may hang this far
+/// over a display edge with all of the character still in view.
+const TUCK: f64 = 30.0;
 
 struct Rect { x: f64, y: f64, w: f64, h: f64, scale: f64 }
 impl Rect {
@@ -117,11 +122,41 @@ pub fn advance(mode: Movement, areas: &[Area], size: (f64, f64), roam: &mut Roam
 /// Whether the whole character is on a display and at rest, so it may stop here.
 /// A walk that is stopped half way off a display would otherwise leave it out of sight.
 pub fn settled(areas: &[Area], size: (f64, f64), roam: &Roam) -> bool {
-    if roam.transit != Transit::None || roam.falling() || roam.peeking() { return false; }
+    if roam.transit != Transit::None || roam.falling() || roam.peeking() || roam.goal.is_some() { return false; }
     areas.iter().filter(|a| a.scale.is_finite() && a.scale > 0.0).map(Rect::of).any(|r| {
         let (w, h) = (size.0 * r.scale, size.1 * r.scale);
-        roam.x >= r.x - 0.5 && roam.x + w <= r.x + r.w + 0.5 && roam.y >= r.y - 0.5 && roam.y + h <= r.y + r.h + FOOT * r.scale + 0.5
+        roam.x >= r.x - TUCK * r.scale - 0.5 && roam.x + w <= r.x + r.w + TUCK * r.scale + 0.5 && roam.y >= r.y - 0.5 && roam.y + h <= r.y + r.h + FOOT * r.scale + 0.5
     })
+}
+
+/// Where to stand to be out of the way: the nearer bottom corner of the display it is on.
+pub fn corner(areas: &[Area], size: (f64, f64), roam: &Roam) -> Option<(f64, f64)> {
+    let rects: Vec<Rect> = areas.iter()
+        .filter(|a| a.width > 0 && a.height > 0 && a.scale.is_finite() && a.scale > 0.0).map(Rect::of).collect();
+    if rects.is_empty() || !roam.x.is_finite() || !roam.y.is_finite() { return None; }
+    let rough = &rects[locate(&rects, roam.x, roam.y)];
+    let a = &rects[locate(&rects, roam.x + size.0 * rough.scale / 2.0, roam.y + size.1 * rough.scale / 2.0)];
+    let (w, h) = (size.0 * a.scale, size.1 * a.scale);
+    let tuck = TUCK * a.scale;
+    let left = roam.x + w / 2.0 < a.x + a.w / 2.0;
+    Some((if left { a.x - tuck } else { a.x + a.w - w + tuck }, a.y + a.h - h + FOOT * a.scale))
+}
+/// Where to stand to be beside a point, such as the pointer, without leaving the display.
+pub fn beside(areas: &[Area], size: (f64, f64), mode: Movement, point: (f64, f64)) -> Option<(f64, f64)> {
+    let rects: Vec<Rect> = areas.iter()
+        .filter(|a| a.width > 0 && a.height > 0 && a.scale.is_finite() && a.scale > 0.0).map(Rect::of).collect();
+    if rects.is_empty() || !point.0.is_finite() || !point.1.is_finite() { return None; }
+    let a = &rects[locate(&rects, point.0, point.1)];
+    let (w, h) = (size.0 * a.scale, size.1 * a.scale);
+    let x = (point.0 - w / 2.0).clamp(a.x, (a.x + a.w - w).max(a.x));
+    let floor = a.y + a.h - h + FOOT * a.scale;
+    Some((x, if mode == Movement::Walk { floor } else { (point.1 - h * 0.75).clamp(a.y, floor) }))
+}
+/// Whether two points are on the same display.
+pub fn together(areas: &[Area], a: (f64, f64), b: (f64, f64)) -> bool {
+    let rects: Vec<Rect> = areas.iter()
+        .filter(|a| a.width > 0 && a.height > 0 && a.scale.is_finite() && a.scale > 0.0).map(Rect::of).collect();
+    rects.is_empty() || locate(&rects, a.0, a.1) == locate(&rects, b.0, b.1)
 }
 
 fn walk(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64) {
@@ -143,6 +178,16 @@ fn walk(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64) {
         return;
     }
     roam.fall = 0.0; roam.y = floor;
+    if let Some((goal, _)) = roam.goal {
+        // Sent somewhere: head there along the floor, as far as this display goes.
+        let goal = goal.clamp(min_x - TUCK * a.scale, max_x + TUCK * a.scale);
+        let step = WALK * 1.6 * a.scale * dt;
+        if (goal - roam.x).abs() <= step { roam.x = goal; roam.goal = None; roam.gate = None; roam.transit = Transit::None; return; }
+        roam.dx = (goal - roam.x).signum();
+        roam.x += step * roam.dx;
+        peek_at_gate(roam, w, a.scale);
+        return;
+    }
     roam.x += WALK * a.scale * roam.dx * dt;
     peek_at_gate(roam, w, a.scale);
     if roam.transit == Transit::Cross {
@@ -218,6 +263,16 @@ fn glide(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64, s
     let a = &rects[i];
     roam.fall = 0.0; roam.transit = Transit::None;
     let width = size.0 * a.scale;
+    if let Some(goal) = roam.goal {
+        // Sent somewhere: go straight there, a little quicker, and stop.
+        let (ox, oy) = (goal.0 - roam.x, goal.1 - roam.y);
+        let (distance, step) = (ox.hypot(oy), speed * 1.6 * a.scale * dt);
+        if distance <= step { roam.x = goal.0; roam.y = goal.1; roam.goal = None; roam.gate = None; roam.target = None; return; }
+        roam.x += ox / distance * step; roam.y += oy / distance * step;
+        if ox.abs() > 2.0 * a.scale { roam.dx = ox.signum(); }
+        peek_at_gate(roam, width, a.scale);
+        return;
+    }
     let reached = roam.target.map_or(true, |t| (t.0 - roam.x).hypot(t.1 - roam.y) < 6.0 * a.scale);
     if reached {
         // Mostly wander here; now and then set off for another display.
@@ -290,6 +345,7 @@ mod tests {
         let mut roam = Roam::new(4); roam.x = 300.0; roam.y = 900.0 - 236.0 + FOOT;
         assert!(settled(&areas, SIZE, &roam));
         roam.x = -80.0; assert!(!settled(&areas, SIZE, &roam));
+        roam.x = -30.0; assert!(settled(&areas, SIZE, &roam), "tucked into a corner is still in view");
         roam.x = 1500.0; assert!(!settled(&areas, SIZE, &roam));
         roam.x = 300.0; roam.fall = 20.0; assert!(!settled(&areas, SIZE, &roam));
         roam.fall = 0.0; roam.transit = Transit::Leave; assert!(!settled(&areas, SIZE, &roam));
@@ -297,7 +353,36 @@ mod tests {
         roam.x = 1500.0; roam.dx = 1.0;
         let mut steps = 0;
         while !settled(&areas, SIZE, &roam) { advance(Movement::Walk, &areas, SIZE, &mut roam, 1.0 / 30.0); steps += 1; assert!(steps < 30 * 60); }
-        assert!(roam.x <= 1400.0);
+        assert!(roam.x <= 1430.0);
+    }
+    #[test]
+    fn goes_where_it_is_sent_and_stays_there() {
+        let areas = [area(0, 0, 1.0)];
+        let floor = 900.0 - 236.0 + FOOT;
+        let mut roam = Roam::new(3); roam.x = 900.0; roam.y = floor;
+        let spot = corner(&areas, SIZE, &roam).unwrap();
+        assert_eq!(spot, (1430.0, floor), "the nearer bottom corner, tucked against the edge");
+        roam.goal = Some(spot);
+        let mut steps = 0;
+        while !settled(&areas, SIZE, &roam) || roam.goal.is_some() {
+            advance(Movement::Walk, &areas, SIZE, &mut roam, 1.0 / 30.0); steps += 1; assert!(steps < 30 * 30);
+            assert!(roam.transit == Transit::None, "never wanders off on the way");
+        }
+        assert_eq!((roam.x, roam.y), spot);
+        roam.x = 300.0;
+        assert_eq!(corner(&areas, SIZE, &roam).unwrap().0, -30.0);
+        // Called to the pointer: a walker stands under it, a flier hovers beside it.
+        assert_eq!(beside(&areas, SIZE, Movement::Walk, (800.0, 200.0)).unwrap(), (700.0, floor));
+        let hover = beside(&areas, SIZE, Movement::Fly, (800.0, 400.0)).unwrap();
+        assert_eq!(hover, (700.0, 223.0));
+        roam.goal = Some(hover);
+        let mut steps = 0;
+        while roam.goal.is_some() { advance(Movement::Fly, &areas, SIZE, &mut roam, 1.0 / 30.0); steps += 1; assert!(steps < 30 * 30); }
+        assert_eq!((roam.x, roam.y), (700.0, 223.0));
+        assert!(settled(&areas, SIZE, &roam));
+        assert_eq!(beside(&areas, SIZE, Movement::Walk, (5000.0, 200.0)).unwrap().0, 1400.0);
+        let two = [area(0, 0, 1.0), area(1600, 0, 1.0)];
+        assert!(together(&two, (10.0, 10.0), (900.0, 500.0)) && !together(&two, (10.0, 10.0), (1700.0, 500.0)));
     }
     #[test]
     fn peeks_in_before_entering_from_off_screen() {

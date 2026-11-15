@@ -15,10 +15,11 @@ pub fn run() {
         .manage(jev::Service::default())
         .setup(|app| desktop::setup(app.handle()))
         .on_window_event(desktop::window_event)
+        .on_menu_event(|app, event| desktop::menu_event(app, event.id.as_ref()))
         .invoke_handler(tauri::generate_handler![
             jev::jev_status, jev::jev_save_key, jev::jev_forget_key,
             jev::jev_configure, jev::jev_decide,
-            desktop::desktop_status, desktop::desktop_action, desktop::desktop_roam, desktop::desktop_attention, desktop::desktop_lively, desktop::desktop_movement
+            desktop::desktop_status, desktop::desktop_action, desktop::desktop_roam, desktop::desktop_attention, desktop::desktop_lively, desktop::desktop_errand, desktop::desktop_menu, desktop::desktop_movement
         ])
         .build(tauri::generate_context!())
         .expect("LittleLife could not start")

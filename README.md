@@ -19,7 +19,8 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 - A browser preview using the same character and behavior engine.
 - A character-only transparent companion that walks, flies or swims across every display: it leaves one screen and peeks in at the edge of another before coming in, follows you when you switch Spaces, drops to the floor when you let go of it, and looks up when your pointer comes close.
 - It stays with you on every macOS Space, including beside full-screen applications, and over maximized windows on Windows.
-- It keeps fitting company: quieter beside code or writing, dancing when music plays, sitting down to watch a video with you, silent in a call, asleep while you are away and glad when you return.
+- It keeps out of your way: beside code or writing, a video or a call it goes to the nearer bottom corner and sits there instead of wandering across your work. It dances when music plays behind your work, but not when the sound is a video in another window. It sleeps while you are away and is glad when you return.
+- **Ask it things.** Right-click the character: Come here, Step aside, Take a nap, Play, Stay where you are. Sent aside, it waits in its corner and after a few minutes asks whether it may come back.
 - Gentle reminders to drink water, rest your eyes and take a break. Ignore one and your friend gets annoyed, then properly cross, until you look after yourself.
 - Clicks pass through the empty space around the character, so it never blocks the application underneath.
 - Tray/menu-bar recovery, saved position/view mode, always-on-top, and explicit compact click-through.
@@ -34,7 +35,7 @@ In the browser preview, Moss rests after two minutes without interaction inside 
 To behave like company rather than a screensaver, the desktop app checks three things, a few times a minute, on your device only:
 
 - which **kind** of application is in front (editor, music player, video player, call, browser and so on), from its name. On Windows the front window's title is also matched against a short list of video sites;
-- whether **sound is playing** (macOS only);
+- whether **sound is playing**, whether something is **keeping the display awake** (a playing video does, music does not), and whether the front application **fills the screen** (macOS only);
 - how long since the **keyboard or pointer was last used**, and where the pointer is, so the character can notice you and let clicks through.
 - on macOS, **when you switch Spaces** and in which direction, so it can come after you.
 
@@ -98,6 +99,7 @@ The frontend uses TypeScript, Vite, and a small Canvas pixel engine. Characters 
 | `src/engine.ts` | Pure decisions, state validation, needs, and interactions |
 | `src/mood.ts` | What the person seems to be doing, and the company that suits it |
 | `src/reminders.ts` | Care reminders, patience and escalation |
+| `src/waiting.ts` | A companion sent aside, and when it asks to come back |
 | `src/character.ts` | Logical Canvas mount |
 | `src/pixel/` | Character definitions, pixel composition, pose clips, palettes and playback |
 | `src/style.css` | Character animations and interface |

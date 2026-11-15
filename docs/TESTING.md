@@ -79,6 +79,12 @@ Checked by hand on one Mac (macOS 27, a single 1680 × 1050 display, 0.2.0 devel
 
 ## Company and reminder acceptance
 
+- [ ] Play a video full screen, then in a window while typing elsewhere, then play only music; the companion sits in a corner for the first, sits without dancing for the second and dances for the third.
+- [ ] While it keeps to a corner it never crosses subtitles, a terminal prompt or the text being typed.
+- [ ] Right-click the character; every menu item does what it says, and the labels follow its state.
+- [ ] Step aside, wait four minutes, answer Not yet, wait eight more, then Come on out.
+- [ ] At both screen edges and while it peeks in, the word cloud is fully readable or held back, never cut off.
+
 - [ ] Bring an editor, a music player, a video player and a call to the front in turn; within a few seconds the behavior matches the table in TEST-BUILDS.md.
 - [ ] Leave the computer for five minutes; the character sleeps, then greets you on return.
 - [ ] Turn off **Notice what I'm doing**; behavior no longer changes with the front application.

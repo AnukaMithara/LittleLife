@@ -17,12 +17,17 @@ export interface Sense {
   activity: Activity;
   /** Sound is playing on this device. */
   audio: boolean;
+  /** What is playing, whatever is in front: music, or a video keeping the screen awake. */
+  media: Media;
   /** Seconds since the keyboard or pointer was last used anywhere. */
   idleSeconds: number;
 }
+export const MEDIA = ["none", "music", "video"] as const;
+export type Media = (typeof MEDIA)[number];
 export const UNKNOWN: Sense = {
   activity: "other",
   audio: false,
+  media: "none",
   idleSeconds: 0,
 };
 export function restoreSense(raw: unknown): Sense {
@@ -34,6 +39,7 @@ export function restoreSense(raw: unknown): Sense {
       ? (s.activity as Activity)
       : "other",
     audio: s.audio === true,
+    media: MEDIA.includes(s.media as Media) ? (s.media as Media) : "none",
     idleSeconds:
       typeof idle === "number" && Number.isFinite(idle) ? Math.max(0, idle) : 0,
   };
@@ -55,13 +61,18 @@ export function vibe(sense: Sense): Vibe {
     case "music":
       return "music";
     default:
-      return sense.audio ? "music" : "free";
+      return sense.media === "music" ? "music" : "free";
   }
 }
 /** Music is on and nothing asks for stillness, so idle moments become a little dance. */
 export function grooving(sense: Sense): boolean {
   const now = vibe(sense);
-  return now === "music" || (now === "focus" && sense.audio);
+  return now === "music" || (now === "focus" && sense.media === "music");
+}
+/** The person is occupied: keep to a corner rather than wander across their work. */
+export function settles(sense: Sense): boolean {
+  const now = vibe(sense);
+  return now === "focus" || now === "watch" || now === "meeting";
 }
 /** Reminders and chatter wait while the person is in a call or watching something. */
 export function busy(sense: Sense): boolean {
@@ -74,11 +85,11 @@ export function greeting(next: Vibe, previous: Vibe): string | undefined {
     return "You're back! I missed you.";
   switch (next) {
     case "focus":
-      return "Deep work? I'll keep quiet beside you.";
+      return "Deep work? I'll keep out of your way.";
     case "music":
       return "Ooh, I like this one! ♪";
     case "watch":
-      return "Movie time! I'll sit and watch with you.";
+      return "Movie time! I'll watch from the corner.";
     case "meeting":
       return "Shh… I'll be quiet for your call.";
     default:

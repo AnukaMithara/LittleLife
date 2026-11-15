@@ -18,6 +18,8 @@ export async function installNativeMock(
       awareness: true,
     };
     let roaming = false;
+    const errands: string[] = [];
+    const menus: unknown[] = [];
     let attention = false;
     // Stands in for the native movement thread.
     setInterval(() => {
@@ -67,6 +69,12 @@ export async function installNativeMock(
           roaming = args.active === true;
           return;
         case "desktop_lively":
+          return;
+        case "desktop_errand":
+          errands.push(String(args.errand));
+          return;
+        case "desktop_menu":
+          menus.push({ resting: args.resting, staying: args.staying });
           return;
         case "desktop_attention":
           attention = args.active === true;
@@ -160,6 +168,8 @@ export async function installNativeMock(
       __littlelifeDesktopState: () => ({ ...desktop }),
       __littlelifeDesktopPosition: () => ({ ...position }),
       __littlelifeAttention: () => attention,
+      __littlelifeErrands: () => [...errands],
+      __littlelifeMenus: () => [...menus],
       __littlelifeSignal: send,
       __TAURI_EVENT_PLUGIN_INTERNALS__: {
         unregisterListener: (_event: string, id: number) =>

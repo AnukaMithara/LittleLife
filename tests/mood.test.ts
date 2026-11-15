@@ -5,16 +5,17 @@ import {
   greeting,
   grooving,
   restoreSense,
+  settles,
   UNKNOWN,
   vibe,
   type Sense,
 } from "../src/mood";
 
-const sense = (activity: Sense["activity"], audio = false): Sense => ({
-  activity,
-  audio,
-  idleSeconds: 0,
-});
+const sense = (
+  activity: Sense["activity"],
+  audio = false,
+  media: Sense["media"] = audio ? "music" : "none",
+): Sense => ({ activity, audio, media, idleSeconds: 0 });
 describe("fitting company", () => {
   it("reads the room from the activity and whether sound is playing", () => {
     expect(vibe(sense("coding"))).toBe("focus");
@@ -31,6 +32,15 @@ describe("fitting company", () => {
     );
     expect(busy(sense("video")) && busy(sense("meeting"))).toBe(true);
     expect(busy(sense("coding"))).toBe(false);
+    // A video on in the background is not music to dance to, and work still comes first.
+    expect(vibe(sense("coding", true, "video"))).toBe("focus");
+    expect(grooving(sense("coding", true, "video"))).toBe(false);
+    expect(vibe(sense("browsing", true, "video"))).toBe("free");
+    // Occupied people get a companion that keeps to a corner.
+    for (const activity of ["coding", "writing", "video", "meeting"] as const)
+      expect(settles(sense(activity)), activity).toBe(true);
+    for (const activity of ["browsing", "music", "away", "other"] as const)
+      expect(settles(sense(activity)), activity).toBe(false);
   });
   it("greets a returning person and stays quiet when nothing changed worth a word", () => {
     expect(greeting("focus", "away")).toContain("back");
@@ -40,12 +50,21 @@ describe("fitting company", () => {
   });
   it("accepts only well-formed native observations", () => {
     expect(
-      restoreSense({ activity: "coding", audio: true, idleSeconds: 30 }),
+      restoreSense({
+        activity: "coding",
+        audio: true,
+        media: "video",
+        idleSeconds: 30,
+      }),
     ).toEqual({
       activity: "coding",
       audio: true,
+      media: "video",
       idleSeconds: 30,
     });
+    expect(restoreSense({ activity: "coding", media: "podcast" }).media).toBe(
+      "none",
+    );
     for (const raw of [
       null,
       "coding",

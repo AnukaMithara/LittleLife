@@ -40,7 +40,12 @@ Use the LittleLife tray icon on Windows or menu-bar icon on macOS:
 - **Reset position to primary display** rescues a companion after a monitor is removed.
 - **Quit LittleLife** exits the process.
 
-Double-click/right-click the character or press Escape to open the full controls; drag the character to reposition it. The expanded in-app × button means **Quit**, so they exit rather than merely hiding. OS close requests hide to the tray when one is available. Opening a second instance restores the existing one instead of creating another companion. On macOS, reopening from the Dock also restores interaction.
+Double-click the character or press Escape to open the full controls; drag the character to reposition it. **Right-click the character** for its own menu:
+
+- **Come here** brings it over to the pointer, from another display if need be.
+- **Step aside** sends it to the nearer bottom corner to wait. After four minutes it asks whether it may come back. **Not yet** (or no answer) makes it wait twice as long before asking again, up to twenty minutes; **Come on out**, or simply petting it, sets it free. The menu item becomes **Come back out**.
+- **Take a nap / Wake up**, **Play**, and **Stay where you are / Roam freely**.
+- **Open little corner…** opens the full controls. The expanded in-app × button means **Quit**, so they exit rather than merely hiding. OS close requests hide to the tray when one is available. Opening a second instance restores the existing one instead of creating another companion. On macOS, reopening from the Dock also restores interaction.
 
 Under **Little settings → Desktop companion**, you can select Walking/Flying/Swimming, enable or disable roaming, change always-on-top, hide, reset placement, or choose **Compact and let clicks pass through**. Ordinarily only the character itself (and a speech bubble while one shows) takes clicks; the transparent space around it lets them through. This explicit click-through goes further and covers the **entire compact window**, including the character. Return through the tray's Interact command to pet or drag again. If the tray cannot be created, hiding and click-through are disabled. Click-through is never saved or enabled on startup.
 
@@ -64,11 +69,17 @@ Every four seconds the desktop app reduces the front application, playing sound 
 
 | You are… | Your friend… |
 | --- | --- |
-| coding, writing or designing | wanders much less and stays quiet |
-| playing music (or coding with music on) | dances, and is livelier |
-| watching a video | sits down and watches; reminders wait |
-| in a call | stays still and silent; reminders wait |
+| coding, writing or designing | goes to the nearer bottom corner and sits quietly |
+| …with music on | dances there |
+| …with a video on in another window | sits, without dancing |
+| playing music, or browsing with music on | roams and dances, livelier |
+| watching a video | sits in the corner and watches; reminders wait |
+| in a call | stays in the corner, still and silent; reminders wait |
 | away for five minutes | falls asleep, and greets you when you return |
+
+A video is told from music by the display: playback that keeps the screen awake, fills the screen, or is left untouched for twenty seconds is being watched. Keep-awake utilities are ignored. If you move the companion while it is keeping to its corner, it stays where you put it.
+
+Words appear in a cloud above its head only once it has arrived, and the cloud shifts and narrows to stay on the screen when the character stands at an edge.
 
 Reminders are set under **Little settings → Gentle reminders**: water every 45 minutes, eyes every 20 and a break every 50 by default, each adjustable from 5 to 240 minutes or 0 for off. Click the character or **Done** once you have done it; **Later** asks again in ten minutes. After two ignored minutes the request turns annoyed, after five it turns angry: the character stomps, **Later** disappears and the bond drops a little. Three minutes away from keyboard and pointer counts as the break and the eye rest. Time spent away, in a call or watching something never counts as ignoring.
 

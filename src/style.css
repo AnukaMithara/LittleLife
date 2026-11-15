@@ -863,7 +863,7 @@ html.companion-mode body {
 .bubble:after {
   content: "";
   position: absolute;
-  left: calc(50% - 16px);
+  left: clamp(8px, calc(50% - 16px - var(--nudge, 0px)), calc(100% - 18px));
   bottom: -9px;
   width: 9px;
   height: 9px;
@@ -872,7 +872,7 @@ html.companion-mode body {
   background: #fffefa;
 }
 .bubble:after {
-  left: calc(50% - 6px);
+  left: clamp(14px, calc(50% - 6px - var(--nudge, 0px)), calc(100% - 12px));
   bottom: -16px;
   width: 5px;
   height: 5px;
@@ -925,7 +925,11 @@ html.companion-mode body {
   padding: 3px 9px;
   font-size: 10px;
 }
-.bubble-actions button:first-child {
+.bubble-actions button[hidden] {
+  display: none;
+}
+.bubble-actions button#care-done,
+.bubble-actions button#plea-yes {
   background: #6f8a5b;
   border-color: #6f8a5b;
   color: #fff;
@@ -937,6 +941,9 @@ html.companion-mode body {
 .compact .bubble {
   top: auto;
   bottom: 138px;
+  /* Centred in whatever part of the window is on the screen. */
+  left: calc(50% + var(--nudge, 0px));
+  max-width: calc(100% - 8px - var(--cut, 0px));
   padding: 5px 10px;
 }
 .care-settings {
