@@ -97,7 +97,11 @@ $("character-select").addEventListener("change", () => {
     character: $<HTMLSelectElement>("character-select").value,
     facing: appearance.facing,
   };
-  if (state.name === previous.name) state.name = selectedCharacter().name;
+  if (state.name === previous.name) {
+    state.name = selectedCharacter().name;
+    if ($<HTMLInputElement>("name").value === previous.name)
+      $<HTMLInputElement>("name").value = state.name;
+  }
   syncAppearanceControls();
   saveAppearance();
   save();

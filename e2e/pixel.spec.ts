@@ -13,6 +13,7 @@ test("changes character, colors, directions and poses, and restores appearance",
   await expect(
     page.getByRole("heading", { name: "Ember", exact: true }),
   ).toBeVisible();
+  await expect(page.getByLabel("A name for your friend")).toHaveValue("Ember");
   await page.getByLabel("Direction", { exact: true }).selectOption("back");
   await page.getByLabel("Pose preview", { exact: true }).selectOption("wave");
   await expect(canvas).toHaveAttribute("data-facing", "back");
@@ -42,6 +43,11 @@ test("changes character, colors, directions and poses, and restores appearance",
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(canvas).toHaveAttribute("data-pose", "jump");
   await expect(canvas).toHaveAttribute("data-preview", "false");
+  await page.getByLabel("A name for your friend").fill("Pip");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByLabel("Character", { exact: true }).selectOption("aster");
+  await expect(page.getByRole("heading", { name: "Pip", exact: true })).toBeVisible();
+  await expect(page.getByLabel("A name for your friend")).toHaveValue("Pip");
   expect(errors).toEqual([]);
 });
 
