@@ -22,11 +22,15 @@ Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account
 - Signed Windows installers and signed/notarized macOS builds.
 - Additional local personality traits, understandable memory, and reset controls.
 
-## Milestone 4: bring your own little friend
+## Pixel engine: implemented
+
+Code-defined pixel parts and a shared rig now drive four original characters, four facings, eight pose clips, expression variants, outfit/accent palettes, integer Canvas scaling, and saved appearance. The workshop previews poses without changing the behavioral engine. See PIXEL-ENGINE.md.
+
+## Bring your own little friend: future imports
 
 - Versioned character-pack manifest with supported actions and attribution/license.
-- Local sprite-sheet import with frame rectangles, timing, anchors, and preview.
+- Validated import/export of code-independent pixel-grid character data, with asset bounds and licenses.
 - Strict asset limits and no executable scripts in character packs.
-- Document a reference pack before building a pack editor or gallery.
+- Build a freehand pixel/part editor only after the pack contract is established.
 
 No accounts or hosted service are required for the core companion.

@@ -2,13 +2,14 @@
 
 **A little company for your everyday.**
 
-An offline-first desktop companion for Windows and macOS. Meet **Moss**, an original little leaf spirit that blinks, wanders, naps, and gets very happy to see you.
+An offline-first desktop companion for Windows and macOS. Meet **Moss**, an original little leaf spirit that blinks, wanders, naps, and gets very happy to see you. Its appearance is now drawn by a reusable pixel character engine.
 
 This is the first working milestone, not a signed installer release. A personal open-source project by Anuka Mithara, licensed under MIT.
 
 ## What works
 
-- Six animated states: idle, walk, sleep, jump, curious, and happy.
+- Four original pixel characters with shared idle, walk, sleep, jump, curious, and happy animations.
+- A character workshop with palette controls, four directions, and sitting/waving pose previews.
 - Pet, play, rest, and wake interactions.
 - Cursor reactions inside the companion window.
 - Energy, bond, a custom name, and preferences saved locally.
@@ -65,18 +66,25 @@ If you already have Chromium installed, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 
 ## Small by design
 
-The frontend uses TypeScript, Vite, original SVG artwork, and CSS animations. Tauri provides the desktop shell. There is no React, PixiJS, database, or animation framework to install for this first character.
+The frontend uses TypeScript, Vite, and a small Canvas pixel engine. Characters are assembled from code-defined colored layers and reusable pose clips. Tauri provides the desktop shell. There is no React, PixiJS, database, imported sprite sheet, or animation framework.
 
 | File | Responsibility |
 | --- | --- |
 | `src/engine.ts` | Pure decisions, state validation, needs, and interactions |
-| `src/character.ts` | Original Moss artwork |
+| `src/character.ts` | Logical Canvas mount |
+| `src/pixel/` | Character definitions, pixel composition, pose clips, palettes and playback |
 | `src/style.css` | Character animations and interface |
 | `src/main.ts` | Input, UI, timing, and local persistence |
 | `src/desktop.ts` | Small native window bridge |
 | `src-tauri/` | Desktop configuration and Rust entry point |
 
-The decision loop runs every six seconds, with a one-second needs tick. Animations run independently in CSS. Hidden webviews suspend simulation work. State is written every 15 seconds, on explicit interactions, and on page exit when available. Browser preview and desktop app have separate local storage. Clearing app/browser data resets your companion. If storage is blocked, the app stays usable and tells you the visit cannot be saved.
+The decision loop runs every six seconds, with a one-second needs tick. Pixel animations run independently in the Canvas player. Hidden webviews suspend simulation work. State is written every 15 seconds, on explicit interactions, and on page exit when available. Browser preview and desktop app have separate local storage. Clearing app/browser data resets your companion. If storage is blocked, the app stays usable and tells you the visit cannot be saved.
+
+## Pixel characters
+
+Click **Characters ↗** to choose a look and preview its poses. The default Moss, silver-haired Ember, armored Aster and crowned Surya use the same engine and action set. No character image files are loaded. Your pet's bond and energy stay intact when changing appearance.
+
+See [the pixel engine guide](docs/PIXEL-ENGINE.md) for authoring new characters and the generated pose preview.
 
 ## Jev and character packs
 

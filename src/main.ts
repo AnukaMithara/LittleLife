@@ -1,5 +1,9 @@
 import "./style.css";
 import { character } from "./character";
+import { CHARACTERS } from "./pixel/art";
+import { APPEARANCE_KEY, restoreAppearance } from "./pixel/appearance";
+import { FACINGS, POSES, type Facing, type Pose } from "./pixel/engine";
+import { PixelPlayer } from "./pixel/player";
 import {
   bondLabel,
   decide,
@@ -35,11 +39,11 @@ app.innerHTML = `
         <div class="pet-position" id="pet-position"><button id="pet" class="pet-button" aria-label="Pet Moss">${character()}</button></div>
         <span class="stage-caption">a little wild. a little wonderful.</span>
       </div>
-      <div class="profile"><div><div class="name-line"><h2 id="pet-name">Moss</h2><span class="species">LEAF SPIRIT</span></div><p><span class="status-dot"></span><span id="action-label">Settling in</span></p></div><span class="profile-mark">❋</span></div>
+      <div class="profile"><div><div class="name-line"><h2 id="pet-name">Moss</h2><span class="species" id="character-title">LEAF SPIRIT</span></div><p><span class="status-dot"></span><span id="action-label">Settling in</span></p></div><button class="appearance-button" id="open-characters" type="button">Characters ↗</button></div>
       <div class="vitals"><div><div class="vital-label"><span>Energy</span><span id="energy-value"></span></div><div class="meter" role="meter" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" id="energy-meter"><span id="energy-bar"></span></div></div><div><div class="vital-label"><span>Your bond</span><span id="bond-value"></span></div><div class="meter bond" role="meter" aria-label="Bond" aria-valuemin="0" aria-valuemax="100" id="bond-meter"><span id="bond-bar"></span></div></div></div>
       <div class="actions"><button id="pet-action"><span aria-hidden="true">♡</span> Pet</button><button id="play"><span aria-hidden="true">✧</span> Play</button><button id="rest"><span aria-hidden="true">☾</span> Rest</button></div>
       <div class="bottom-row"><span id="bond-label">Getting acquainted</span><button id="settings-toggle" aria-expanded="false" aria-controls="settings">Little settings <span>⚙</span></button></div>
-      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Reacts to your cursor inside this window. No screen reading or background activity tracking.</p><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
+      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Reacts to your cursor inside this window. No screen reading or background activity tracking.</p><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select">${CHARACTERS.map((c) => `<option value="${c.id}">${c.name} · ${c.title.toLowerCase()}</option>`).join("")}</select></div><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
       <div class="compact-controls"><button id="expand">↗ <span>Open little corner</span></button><button id="move" aria-label="Drag companion" title="Drag companion">↔</button><button id="compact-quit" aria-label="Quit LittleLife">×</button></div>
     </section>
     <footer class="page-footer"><span>Grows on you. Never grows up.</span><span><span id="provider-label">OFFLINE & CONTENT</span> <i class="dot"></i></span></footer>
@@ -55,6 +59,89 @@ try {
   storageAvailable = false;
 }
 let state = restorePet(raw);
+let appearanceRaw: string | null = null;
+try {
+  appearanceRaw = localStorage.getItem(APPEARANCE_KEY);
+} catch {
+  /* Defaults remain usable. */
+}
+let appearance = restoreAppearance(appearanceRaw);
+let previewPose: Pose | "auto" = "auto";
+const pixelPlayer = new PixelPlayer($<HTMLCanvasElement>("pixel-character"));
+function selectedCharacter() {
+  return CHARACTERS.find((c) => c.id === appearance.character)!;
+}
+function saveAppearance() {
+  try {
+    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance));
+    $("appearance-storage").textContent = "";
+  } catch {
+    $("appearance-storage").textContent =
+      "Appearance storage is unavailable. Changes last for this visit.";
+  }
+}
+function syncAppearanceControls() {
+  const character = selectedCharacter();
+  $<HTMLSelectElement>("character-select").value = character.id;
+  $<HTMLInputElement>("pixel-primary").value =
+    appearance.primary ?? character.palette.p;
+  $<HTMLInputElement>("pixel-accent").value =
+    appearance.accent ?? character.palette.a;
+  $<HTMLSelectElement>("pixel-facing").value = appearance.facing;
+  $<HTMLSelectElement>("pixel-pose").value = previewPose;
+}
+$("character-select").addEventListener("change", () => {
+  const previous = selectedCharacter();
+  appearance = {
+    version: 1,
+    character: $<HTMLSelectElement>("character-select").value,
+    facing: appearance.facing,
+  };
+  if (state.name === previous.name) {
+    state.name = selectedCharacter().name;
+    if ($<HTMLInputElement>("name").value === previous.name)
+      $<HTMLInputElement>("name").value = state.name;
+  }
+  syncAppearanceControls();
+  saveAppearance();
+  save();
+  render();
+});
+for (const [id, key] of [
+  ["pixel-primary", "primary"],
+  ["pixel-accent", "accent"],
+] as const) {
+  $(id).addEventListener("input", () => {
+    appearance[key] = $<HTMLInputElement>(id).value;
+    saveAppearance();
+    render();
+  });
+}
+$("pixel-facing").addEventListener("change", () => {
+  appearance.facing = $<HTMLSelectElement>("pixel-facing").value as
+    Facing | "auto";
+  saveAppearance();
+  render();
+});
+$("pixel-pose").addEventListener("change", () => {
+  previewPose = $<HTMLSelectElement>("pixel-pose").value as Pose | "auto";
+  render();
+});
+$("pixel-reset").addEventListener("click", () => {
+  delete appearance.primary;
+  delete appearance.accent;
+  syncAppearanceControls();
+  saveAppearance();
+  render();
+});
+$("open-characters").addEventListener("click", () => {
+  $("settings").hidden = false;
+  $("settings-toggle").setAttribute("aria-expanded", "true");
+  $<HTMLInputElement>("name").value = state.name;
+  $<HTMLDetailsElement>("pixel-workshop").open = true;
+  $("character-select").focus();
+});
+syncAppearanceControls();
 let jevSettingsBusy = false;
 const jev = new JevController(nativeJev, renderJev);
 function renderJev() {
@@ -166,6 +253,30 @@ function save() {
     : "Storage is unavailable. This visit will not be saved.";
 }
 function render() {
+  const character = selectedCharacter();
+  const pose = previewPose === "auto" ? action : previewPose;
+  const facing =
+    appearance.facing === "auto"
+      ? pose === "walk"
+        ? direction > 0
+          ? "right"
+          : "left"
+        : "front"
+      : appearance.facing;
+  pixelPlayer.setState({
+    character,
+    pose,
+    facing,
+    primary: appearance.primary,
+    accent: appearance.accent,
+    paused,
+    still: state.reducedMotion || media.matches,
+  });
+  $("character-title").textContent = character.title;
+  $("pixel-character").setAttribute(
+    "data-preview",
+    String(previewPose !== "auto"),
+  );
   $("pet-name").textContent = state.name;
   $("pet").setAttribute("aria-label", `Pet ${state.name}`);
   $("action-label").textContent = paused
@@ -208,6 +319,8 @@ function activity() {
 function care(kind: "pet" | "play" | "rest") {
   if (paused) return;
   jev.invalidate();
+  previewPose = "auto";
+  $<HTMLSelectElement>("pixel-pose").value = "auto";
   activity();
   if (kind === "rest") {
     resting = !resting;
@@ -232,10 +345,26 @@ function reportError(error: unknown) {
   console.error(error);
   notify("That window action did not work. Please try again.");
 }
+function walkLimit() {
+  return Math.max(
+    0,
+    Math.floor(($("stage").clientWidth - $("pet-position").clientWidth) / 2),
+  );
+}
+function positionCharacter() {
+  const limit = walkLimit();
+  x = Math.max(-limit, Math.min(limit, x));
+  $("pet-position").style.transform = `translateX(${x}px)`;
+}
+window.addEventListener("resize", () => {
+  positionCharacter();
+  pixelPlayer.fit();
+});
 async function setCompact(value: boolean) {
   await compactWindow(value);
   compact = value;
   document.body.classList.toggle("compact", compact);
+  positionCharacter();
   $("compact").setAttribute(
     "aria-label",
     compact ? "Expand companion" : "Switch to compact companion",
@@ -244,7 +373,10 @@ async function setCompact(value: boolean) {
     $("settings").hidden = true;
     $("settings-toggle").setAttribute("aria-expanded", "false");
   }
-  requestAnimationFrame(() => (compact ? $("expand") : $("compact")).focus());
+  requestAnimationFrame(() => {
+    pixelPlayer.fit();
+    (compact ? $("expand") : $("compact")).focus();
+  });
 }
 $("pet").addEventListener("click", () => care("pet"));
 $("pet-action").addEventListener("click", () => care("pet"));
@@ -411,11 +543,11 @@ setInterval(() => {
       }
     }
     if (action === "walk" && !state.reducedMotion && !media.matches) {
-      const limit = Math.max(0, ($("stage").clientWidth - 210) / 2);
+      const limit = walkLimit();
       x = Math.max(-limit, Math.min(limit, x + direction * 9));
       if (Math.abs(x) >= limit) direction *= -1;
     }
-    $("pet-position").style.transform = `translateX(${x}px)`;
+    positionCharacter();
   }
   lastTick = now;
   if (now - lastSave >= 15000) {
