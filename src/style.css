@@ -831,3 +831,8 @@ h2 {
   color: inherit;
   background: #fffefa;
 }
+
+.name-input button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}

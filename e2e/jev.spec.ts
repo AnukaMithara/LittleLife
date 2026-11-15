@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 test("native Jev setup clears the key, asks only after consent, and can remove it", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 440, height: 650 });
   await page.clock.install();
   await page.addInitScript(() => {
     // Mock only the documented Tauri IPC boundary. No real key or API request is used.

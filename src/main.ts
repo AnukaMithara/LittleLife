@@ -55,6 +55,7 @@ try {
   storageAvailable = false;
 }
 let state = restorePet(raw);
+let jevSettingsBusy = false;
 const jev = new JevController(nativeJev, renderJev);
 function renderJev() {
   const status = jev.status;
@@ -63,13 +64,16 @@ function renderJev() {
     : "OFFLINE & CONTENT";
   $("jev-native").hidden = !native || !status.supported;
   $<HTMLInputElement>("jev-enabled").checked = status.enabled;
-  $<HTMLInputElement>("jev-enabled").disabled = !status.hasKey;
-  $<HTMLButtonElement>("jev-forget").disabled = !status.hasKey;
+  $<HTMLInputElement>("jev-enabled").disabled =
+    jevSettingsBusy || !status.hasKey;
+  $<HTMLButtonElement>("jev-forget").disabled =
+    jevSettingsBusy || !status.hasKey;
+  for (const id of ["jev-save", "jev-limit-save"])
+    $<HTMLButtonElement>(id).disabled = jevSettingsBusy;
   $("jev-usage").textContent =
     `${status.requests} / ${status.limit} requests this session · ${status.inputTokens + status.outputTokens} reported tokens · at most 1 request/minute`;
   $("jev-status").textContent = jev.message;
 }
-let jevSettingsBusy = false;
 async function updateJev(operation: () => Promise<void>) {
   if (jevSettingsBusy) return;
   jevSettingsBusy = true;
