@@ -32,3 +32,13 @@ Known first-milestone limitations: the overlay rectangle receives pointer events
 - [ ] Lock or deny OS credential-store access; the UI must explain the failure and keep offline care usable.
 
 Browser IPC mocks and Rust response fixtures use no real API credentials. A live provider round trip and native credential-store persistence are still manual acceptance checks.
+
+## Pixel character acceptance
+
+- [ ] Switch among all four characters, recolor them, close/relaunch, and verify saved appearance.
+- [ ] Preview all eight poses in front, side and rear views; verify equipment stays inside the logical canvas.
+- [ ] Pause an active preview and enable OS/app reduced motion; the character must stay still.
+- [ ] Enter compact mode on monitors with different scaling and check pixel edges remain sharp.
+- [ ] Use pet/play/rest during a pose preview; automatic behavior should resume without resetting bond or energy.
+
+The pose preview in PIXEL-ENGINE.md is generated from engine output. No reference image is loaded by the runtime.
