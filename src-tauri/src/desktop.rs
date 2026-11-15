@@ -1,6 +1,7 @@
 use crate::motion::{self, Roam};
 use crate::placement::{self, Area, Preferences, COMPACT};
 use crate::sense::{self, Activity};
+use crate::spaces;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Mutex, time::{Duration, Instant}};
 use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Emitter, Manager, WebviewWindow, WindowEvent};
@@ -22,6 +23,8 @@ struct Session {
     roaming: bool,
     /// Asked to stop while off a display or in the air: carry on until back in view.
     returning: bool,
+    /// Awake and free to move, so it comes after the person when they change Space.
+    lively: bool,
     /// A speech bubble is showing, so the whole window takes clicks.
     attention: bool,
     /// What the window was last told about pointer events, to avoid repeating it.
@@ -31,7 +34,7 @@ impl Default for Session {
     fn default() -> Self { Self { prefs: Preferences::default(), click_through: false, visible: false,
         tray_available: false, storage_available: true, path: None, revision: 0, saving: false,
         roam: Roam::new(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |t| t.as_nanos() as u64)),
-        roaming: false, returning: false, attention: false, ignoring: None } }
+        roaming: false, returning: false, lively: false, attention: false, ignoring: None } }
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -161,7 +164,7 @@ pub fn desktop_action(app: AppHandle, action: Action, value: Option<bool>) -> Re
 #[tauri::command]
 pub fn desktop_movement(app: AppHandle, movement: crate::motion::Movement) -> DesktopState {
     { let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
-      s.prefs.movement = movement; s.roam.target = None; s.roam.transit = motion::Transit::None; }
+      s.prefs.movement = movement; s.roam.rest(); }
     queue_save(&app); notify(&app); state(&app)
 }
 
@@ -210,7 +213,7 @@ pub fn desktop_roam(app: AppHandle, active: bool) -> Result<(), String> {
         if !s.visible || !s.prefs.compact || !s.prefs.roaming { return Ok(()); }
         // Still on its way back into view: carry on from where the walk really is.
         if !std::mem::take(&mut s.returning) {
-            s.roam.x = x; s.roam.y = y; s.roam.fall = 0.0; s.roam.target = None; s.roam.transit = motion::Transit::None;
+            s.roam.x = x; s.roam.y = y; s.roam.rest();
         }
         s.roaming = true;
     } else {
@@ -226,9 +229,15 @@ pub fn desktop_attention(app: AppHandle, active: bool) {
     app.state::<Desktop>().inner.lock().unwrap().attention = active;
 }
 
+/// Whether the companion is awake and free to come after the person between Spaces.
+#[tauri::command]
+pub fn desktop_lively(app: AppHandle, active: bool) {
+    app.state::<Desktop>().inner.lock().unwrap().lively = active;
+}
+
 #[derive(Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Motion { direction: i8, falling: bool, moving: bool }
+struct Motion { direction: i8, falling: bool, moving: bool, peeking: bool }
 #[derive(Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Sensed { activity: Activity, audio: bool, idle_seconds: u32 }
@@ -241,11 +250,38 @@ fn presence(app: AppHandle) {
     let (mut last, mut hover_at, mut sense_at) = (Instant::now(), Instant::now(), None::<Instant>);
     let (mut motion, mut near, mut sensed, mut activity) = (None::<Motion>, false, None::<Sensed>, Activity::Other);
     let (mut over, mut held) = (false, false);
+    let mut places = spaces::positions();
     loop {
-        let (visible, compact, roaming, mode, click_through, attention, awareness) = {
+        let (visible, compact, mut roaming, mode, click_through, attention, awareness, lively) = {
             let desktop = app.state::<Desktop>(); let s = desktop.inner.lock().unwrap();
-            (s.visible, s.prefs.compact, s.roaming || s.returning, s.prefs.movement, s.click_through, s.attention, s.prefs.awareness)
+            (s.visible, s.prefs.compact, s.roaming || s.returning, s.prefs.movement, s.click_through, s.attention, s.prefs.awareness,
+                s.lively && s.prefs.roaming)
         };
+        // The person went to another Space: step out of sight and come in after them,
+        // on the display they are using, from the side they came from.
+        if spaces::changed() {
+            let now = spaces::positions();
+            let side = spaces::side(&places, &now);
+            places = now;
+            if let (true, Some(window)) = (visible && compact && lively, app.get_webview_window("main")) {
+                displays = roam_areas(&window); displays_at = Some(Instant::now());
+                if let (Some((point, _)), Ok(position)) = (pointer(&window), window.outer_position()) {
+                    let (x, y) = units(&window, f64::from(position.x), f64::from(position.y));
+                    let start = {
+                        let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
+                        if !s.roaming && !s.returning { s.roam.x = x; s.roam.y = y; }
+                        motion::follow(mode, &displays, COMPACT, &mut s.roam, point, side).then(|| {
+                            if !s.roaming { s.returning = true; }
+                            (s.roam.x, s.roam.y)
+                        })
+                    };
+                    if let Some((x, y)) = start {
+                        place(&window, x, y); roaming = true; last = Instant::now();
+                        let _ = app.emit_to("main", "desktop-followed", ());
+                    }
+                }
+            }
+        }
         let moving = visible && compact && roaming;
         std::thread::sleep(Duration::from_millis(if moving { 33 } else if visible { 125 } else { 1000 }));
         let Some(window) = app.get_webview_window("main") else { continue; };
@@ -258,7 +294,7 @@ fn presence(app: AppHandle) {
             if let Ok(position) = window.outer_position() {
                 let (x, y) = units(&window, f64::from(position.x), f64::from(position.y));
                 let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
-                s.roam.x = x; s.roam.y = y; s.roam.fall = 0.0; s.roam.target = None; s.roam.transit = motion::Transit::None;
+                s.roam.x = x; s.roam.y = y; s.roam.rest();
             }
         }
         if moving {
@@ -270,7 +306,7 @@ fn presence(app: AppHandle) {
                 if !s.roaming && s.returning && motion::settled(&displays, COMPACT, &s.roam) { s.returning = false; arrived = true; }
                 // Stopped while this thread slept: leave the window where it was put.
                 ((s.roaming || s.returning) && motion::advance(mode, &displays, COMPACT, &mut s.roam, seconds))
-                    .then(|| (s.roam.x, s.roam.y, Motion { direction: if s.roam.dx < 0.0 { -1 } else { 1 }, falling: s.roam.falling(), moving: true }))
+                    .then(|| (s.roam.x, s.roam.y, Motion { direction: if s.roam.dx < 0.0 { -1 } else { 1 }, falling: s.roam.falling(), moving: true, peeking: s.roam.peeking() }))
             };
             if let Some((x, y, now)) = step {
                 place(&window, x, y);
@@ -280,7 +316,7 @@ fn presence(app: AppHandle) {
         if arrived { capture_position(&window); queue_save(&app); }
         if !moving || arrived {
             if let Some(last) = motion.take().filter(|m| m.moving) {
-                let _ = app.emit_to("main", "desktop-motion", Motion { moving: false, falling: false, ..last });
+                let _ = app.emit_to("main", "desktop-motion", Motion { moving: false, falling: false, peeking: false, ..last });
             }
         }
         if hover_at.elapsed() >= Duration::from_millis(110) {
@@ -398,6 +434,7 @@ pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let available = create_tray(app).unwrap_or(false);
     app.state::<Desktop>().inner.lock().unwrap().tray_available = available;
     overlay(app, &window);
+    spaces::watch();
     let handle = app.clone();
     std::thread::Builder::new().name("presence".into()).spawn(move || presence(handle))?;
     Ok(())

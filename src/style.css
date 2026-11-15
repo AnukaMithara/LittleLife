@@ -839,7 +839,7 @@ html.companion-mode body {
   padding: 8px;
 }
 
-/* Reminders and the occasional word, above the character in every mode. */
+/* Reminders and the occasional word: a thought cloud resting just above the head. */
 .bubble {
   position: absolute;
   top: 6px;
@@ -849,8 +849,8 @@ html.companion-mode body {
   max-width: min(250px, calc(100% - 8px));
   border: 1px solid #dfe5d5;
   background: #fffefa;
-  border-radius: 10px;
-  padding: 7px 10px;
+  border-radius: 16px;
+  padding: 7px 12px;
   font-size: 11px;
   line-height: 1.35;
   color: #55624c;
@@ -858,17 +858,44 @@ html.companion-mode body {
   z-index: 3;
   box-shadow: 0 6px 16px -10px #46543980;
 }
+/* Two puffs trailing down toward the character. */
+.bubble:before,
+.bubble:after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 16px);
+  bottom: -9px;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #dfe5d5;
+  border-radius: 50%;
+  background: #fffefa;
+}
+.bubble:after {
+  left: calc(50% - 6px);
+  bottom: -16px;
+  width: 5px;
+  height: 5px;
+}
 .bubble p {
   margin: 0;
 }
-.bubble[data-level="1"] {
+.bubble[data-level="1"],
+.bubble[data-level="1"]:before,
+.bubble[data-level="1"]:after {
   border-color: #e3c58a;
   background: #fff8e8;
+}
+.bubble[data-level="1"] {
   color: #7a5a1c;
 }
-.bubble[data-level="2"] {
+.bubble[data-level="2"],
+.bubble[data-level="2"]:before,
+.bubble[data-level="2"]:after {
   border-color: #d98a8a;
   background: #ffecec;
+}
+.bubble[data-level="2"] {
   color: #8f2f3a;
   font-weight: 600;
   animation: fume 0.45s steps(2, end) infinite;
@@ -906,9 +933,11 @@ html.companion-mode body {
 .stage:has(.bubble:not([hidden])) .speech {
   visibility: hidden;
 }
+/* The character-only window: 160px of character at the bottom, the cloud just over it. */
 .compact .bubble {
-  top: 2px;
-  padding: 5px 8px;
+  top: auto;
+  bottom: 138px;
+  padding: 5px 10px;
 }
 .care-settings {
   margin-top: 14px;

@@ -49,6 +49,8 @@ Under **Little settings → Desktop companion**, you can select Walking/Flying/S
 In native companion mode, a background thread moves the 200 × 236 logical-pixel transparent window about thirty times a second while the behavior engine is exploring, and sleeps otherwise. Walking follows the bottom of the work area, flying heads for random spots, and swimming drifts along a gentle wave.
 
 - **Between displays.** A walker crosses straight onto a display beside the current one. At an edge with nothing beside it, it sometimes walks out of sight and comes back from the other side, or on another display. Flying and swimming simply set off for a spot on another display now and then.
+- **Arriving.** It never simply pops into view. Coming onto a display it stops half way in, looks around for a second or two, then comes in. Walking onto the display beside it, it pauses astride the shared edge the same way.
+- **Following you.** When you move to another macOS Space, it steps out of sight and comes in after you from the side you came from, on the display your pointer is on. A sleeping, paused, resting or quiet companion stays where it is, as it does with reduced motion.
 - **Being carried.** Drag the character anywhere. Let go in walking mode and it drops to the floor and carries on.
 - **Stopping.** Asked to stop while half out of view or in the air, it finishes coming back first, so it is never left parked off-screen.
 - **Full screen.** On macOS the window is a non-activating panel on every Space, so it appears beside full-screen applications and clicking it does not take focus from your work. The app therefore has no Dock icon. On Windows it stays above maximized windows; exclusive full-screen games draw over everything and are not covered.

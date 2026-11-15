@@ -26,14 +26,24 @@ pub struct Roam {
     pub fall: f64,
     pub target: Option<(f64, f64)>,
     pub transit: Transit,
+    /// Seconds left of a pause half way in, looking around before coming in.
+    pub peek: f64,
+    /// The display edge being entered across; the peek happens a little way past it.
+    pub gate: Option<f64>,
+    /// The display the character was last on, to notice when it reaches another.
+    pub area: Option<usize>,
     pub seed: u64,
 }
 
 impl Roam {
     pub fn new(seed: u64) -> Self {
-        Self { x: 0.0, y: 0.0, dx: 1.0, phase: 0.0, fall: 0.0, target: None, transit: Transit::None, seed: seed | 1 }
+        Self { x: 0.0, y: 0.0, dx: 1.0, phase: 0.0, fall: 0.0, target: None, transit: Transit::None, peek: 0.0, gate: None, area: None, seed: seed | 1 }
     }
     pub fn falling(&self) -> bool { self.fall > 0.0 }
+    pub fn peeking(&self) -> bool { self.peek > 0.0 }
+    /// Forget any half-finished crossing, as after being picked up and put down.
+    pub fn rest(&mut self) { self.fall = 0.0; self.target = None; self.transit = Transit::None; self.peek = 0.0; self.gate = None; self.area = None; }
+    fn pause(&mut self) { self.gate = None; self.peek = 1.0 + self.roll() * 0.9; }
     fn roll(&mut self) -> f64 {
         self.seed ^= self.seed << 13; self.seed ^= self.seed >> 7; self.seed ^= self.seed << 17;
         (self.seed >> 11) as f64 / (1u64 << 53) as f64
@@ -44,6 +54,8 @@ impl Roam {
 pub const FOOT: f64 = 8.0;
 const WALK: f64 = 38.0;
 const GRAVITY: f64 = 1600.0;
+/// How much of the window is in view when the character stops to peek: about half its face.
+const PEEK: f64 = 96.0;
 
 struct Rect { x: f64, y: f64, w: f64, h: f64, scale: f64 }
 impl Rect {
@@ -89,6 +101,11 @@ pub fn advance(mode: Movement, areas: &[Area], size: (f64, f64), roam: &mut Roam
     let i = locate(&rects, roam.x + size.0 * rough.scale / 2.0, roam.y + size.1 * rough.scale / 2.0);
     let before = roam.phase;
     roam.phase = (roam.phase + dt * 2.5) % std::f64::consts::TAU;
+    if !roam.peek.is_finite() { roam.peek = 0.0; }
+    // Half way onto another display: stop and look before coming in.
+    if roam.area.is_some_and(|last| last != i) && roam.transit != Transit::Leave { roam.pause(); }
+    roam.area = Some(i);
+    if roam.peek > 0.0 { roam.peek = (roam.peek - dt).max(0.0); return true; }
     match mode {
         Movement::Walk => walk(&rects, i, size, roam, dt),
         Movement::Fly => glide(&rects, i, size, roam, dt, 64.0, 9.0, before, false),
@@ -100,7 +117,7 @@ pub fn advance(mode: Movement, areas: &[Area], size: (f64, f64), roam: &mut Roam
 /// Whether the whole character is on a display and at rest, so it may stop here.
 /// A walk that is stopped half way off a display would otherwise leave it out of sight.
 pub fn settled(areas: &[Area], size: (f64, f64), roam: &Roam) -> bool {
-    if roam.transit != Transit::None || roam.falling() { return false; }
+    if roam.transit != Transit::None || roam.falling() || roam.peeking() { return false; }
     areas.iter().filter(|a| a.scale.is_finite() && a.scale > 0.0).map(Rect::of).any(|r| {
         let (w, h) = (size.0 * r.scale, size.1 * r.scale);
         roam.x >= r.x - 0.5 && roam.x + w <= r.x + r.w + 0.5 && roam.y >= r.y - 0.5 && roam.y + h <= r.y + r.h + FOOT * r.scale + 0.5
@@ -127,6 +144,7 @@ fn walk(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64) {
     }
     roam.fall = 0.0; roam.y = floor;
     roam.x += WALK * a.scale * roam.dx * dt;
+    peek_at_gate(roam, w, a.scale);
     if roam.transit == Transit::Cross {
         if roam.x >= min_x && roam.x <= max_x { roam.transit = Transit::None; }
         return;
@@ -141,28 +159,65 @@ fn walk(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64) {
     }
 }
 
-/// Reappear just outside a display, on a side with nothing beside it.
+/// Stop once enough of the character has come past the edge it is entering across.
+fn peek_at_gate(roam: &mut Roam, w: f64, scale: f64) {
+    let Some(gate) = roam.gate else { return; };
+    let seen = if roam.dx > 0.0 { roam.x + w - gate } else { gate - roam.x };
+    if seen >= PEEK * scale { roam.pause(); } else if seen >= w { roam.gate = None; }
+}
+
+/// Reappear on some display after walking out of sight.
 fn arrive(rects: &[Rect], from: usize, size: (f64, f64), roam: &mut Roam) {
     let to = other(rects, from, roam);
+    enter(rects, to, if to == from { Some(roam.dx > 0.0) } else { None }, size, roam);
+}
+
+/// Stand just outside a display, facing in, on a side with nothing beside it.
+/// `from_left` is the side asked for, used when that side is free.
+fn enter(rects: &[Rect], to: usize, from_left: Option<bool>, size: (f64, f64), roam: &mut Roam) {
     let b = &rects[to];
     let (w, h) = (size.0 * b.scale, size.1 * b.scale);
     let floor = b.y + b.h - h + FOOT * b.scale;
     let (left, right) = (neighbour(rects, to, false).is_none(), neighbour(rects, to, true).is_none());
-    roam.transit = Transit::None; roam.fall = 0.0;
+    roam.rest(); roam.area = Some(to);
     if !left && !right {
         // Displays on both sides: drop in from above instead.
         roam.x = b.x + roam.roll() * (b.w - w).max(0.0); roam.y = b.y - h;
         return;
     }
-    let from_left = if left && right { if to == from { roam.dx > 0.0 } else { roam.roll() < 0.5 } } else { left };
+    let from_left = match from_left {
+        Some(side) if if side { left } else { right } => side,
+        _ => if left && right { roam.roll() < 0.5 } else { left },
+    };
     roam.y = floor;
-    if from_left { roam.x = b.x - w; roam.dx = 1.0; } else { roam.x = b.x + b.w; roam.dx = -1.0; }
+    if from_left { roam.x = b.x - w; roam.dx = 1.0; roam.gate = Some(b.x); }
+    else { roam.x = b.x + b.w; roam.dx = -1.0; roam.gate = Some(b.x + b.w); }
+}
+
+/// Come after the person to the display holding `point`, arriving from one side
+/// as if it had run across from the screen they just left.
+pub fn follow(mode: Movement, areas: &[Area], size: (f64, f64), roam: &mut Roam, point: (f64, f64), from_left: Option<bool>) -> bool {
+    let rects: Vec<Rect> = areas.iter()
+        .filter(|a| a.width > 0 && a.height > 0 && a.scale.is_finite() && a.scale > 0.0).map(Rect::of).collect();
+    if rects.is_empty() || !point.0.is_finite() || !point.1.is_finite() { return false; }
+    let to = locate(&rects, point.0, point.1);
+    let height = roam.y;
+    enter(&rects, to, from_left, size, roam);
+    if mode != Movement::Walk && roam.gate.is_some() {
+        // Fliers and swimmers come in at the height they were at, heading for the middle.
+        let b = &rects[to];
+        let (w, h) = (size.0 * b.scale, size.1 * b.scale);
+        roam.y = if height.is_finite() { height } else { b.y }.clamp(b.y, (b.y + b.h - h).max(b.y));
+        roam.target = Some((b.x + (0.3 + 0.4 * roam.roll()) * (b.w - w).max(0.0), roam.y));
+    }
+    true
 }
 
 #[allow(clippy::too_many_arguments)]
 fn glide(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64, speed: f64, bob: f64, before: f64, level: bool) {
     let a = &rects[i];
     roam.fall = 0.0; roam.transit = Transit::None;
+    let width = size.0 * a.scale;
     let reached = roam.target.map_or(true, |t| (t.0 - roam.x).hypot(t.1 - roam.y) < 6.0 * a.scale);
     if reached {
         // Mostly wander here; now and then set off for another display.
@@ -181,6 +236,7 @@ fn glide(rects: &[Rect], i: usize, size: (f64, f64), roam: &mut Roam, dt: f64, s
     roam.x += ox / distance * step;
     roam.y += oy / distance * step + (roam.phase.sin() - before.sin()) * bob * a.scale;
     if ox.abs() > 2.0 * a.scale { roam.dx = ox.signum(); }
+    peek_at_gate(roam, width, a.scale);
 }
 
 #[cfg(test)]
@@ -242,6 +298,59 @@ mod tests {
         let mut steps = 0;
         while !settled(&areas, SIZE, &roam) { advance(Movement::Walk, &areas, SIZE, &mut roam, 1.0 / 30.0); steps += 1; assert!(steps < 30 * 60); }
         assert!(roam.x <= 1400.0);
+    }
+    #[test]
+    fn peeks_in_before_entering_from_off_screen() {
+        let areas = [area(0, 0, 1.0)];
+        let mut roam = Roam::new(8);
+        assert!(follow(Movement::Walk, &areas, SIZE, &mut roam, (500.0, 300.0), Some(true)));
+        assert_eq!((roam.x, roam.dx), (-200.0, 1.0), "waits outside the left edge, facing in");
+        let (mut paused_at, mut paused) = (None, 0.0);
+        for _ in 0..30 * 30 {
+            let (before, was) = (roam.x, roam.peeking());
+            advance(Movement::Walk, &areas, SIZE, &mut roam, 1.0 / 30.0);
+            if roam.peeking() { paused_at.get_or_insert(roam.x); paused += 1.0 / 30.0; }
+            if was { assert_eq!(roam.x, before, "stands still while looking"); }
+            assert!(!roam.peeking() || !settled(&areas, SIZE, &roam));
+        }
+        let at: f64 = paused_at.expect("stops to peek");
+        assert!(at > -110.0 && at < -95.0, "about half in view, at {at}");
+        assert!((1.0..=2.0).contains(&paused), "a short look around, {paused}s");
+        assert!(roam.x > 0.0 && settled(&areas, SIZE, &roam));
+        // From the other side, and for a flier, which keeps its height.
+        follow(Movement::Walk, &areas, SIZE, &mut roam, (500.0, 300.0), Some(false));
+        assert_eq!((roam.x, roam.dx), (1600.0, -1.0));
+        roam.y = 250.0;
+        follow(Movement::Fly, &areas, SIZE, &mut roam, (500.0, 300.0), Some(true));
+        assert_eq!((roam.x, roam.y), (-200.0, 250.0));
+        let mut peeked = false;
+        for _ in 0..30 * 20 { advance(Movement::Fly, &areas, SIZE, &mut roam, 1.0 / 30.0); peeked |= roam.peeking(); }
+        assert!(peeked && roam.x > 0.0);
+    }
+    #[test]
+    fn follows_to_the_display_under_the_pointer_and_avoids_a_shared_edge() {
+        let areas = [area(0, 0, 1.0), area(1600, 0, 1.0)];
+        let mut roam = Roam::new(6); roam.x = 300.0; roam.y = 600.0;
+        // Asked to come from the left of the right-hand display, where the other display is.
+        follow(Movement::Walk, &areas, SIZE, &mut roam, (2000.0, 400.0), Some(true));
+        assert_eq!((roam.x, roam.dx), (3200.0, -1.0));
+        follow(Movement::Walk, &areas, SIZE, &mut roam, (100.0, 400.0), None);
+        assert_eq!((roam.x, roam.dx), (-200.0, 1.0));
+        assert!(!follow(Movement::Walk, &[], SIZE, &mut roam, (0.0, 0.0), None));
+    }
+    #[test]
+    fn pauses_half_way_when_walking_onto_the_display_beside() {
+        let areas = [area(0, 0, 1.0), area(1600, 0, 1.0)];
+        let mut roam = Roam::new(11); roam.x = 1300.0; roam.y = 900.0 - 236.0 + FOOT;
+        let mut peeks = Vec::new();
+        for _ in 0..30 * 60 * 20 {
+            let was = roam.peeking();
+            advance(Movement::Walk, &areas, SIZE, &mut roam, 1.0 / 30.0);
+            if roam.peeking() && !was { peeks.push(roam.x + 100.0); }
+        }
+        assert!(!peeks.is_empty());
+        // Every look around happens astride the shared edge, or half in from an outer one.
+        for centre in peeks { assert!((centre - 1600.0).abs() < 6.0 || (centre - 0.0).abs() < 12.0 || (centre - 3200.0).abs() < 12.0, "{centre}"); }
     }
     #[test]
     fn walks_between_side_by_side_displays_with_different_scaling() {

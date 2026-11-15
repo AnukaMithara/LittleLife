@@ -74,6 +74,10 @@ export function desktopError(error: unknown): string {
 export function desktopRoam(active: boolean): Promise<void> {
   return invoke("desktop_roam", { active });
 }
+/** Awake and free to move: it may come after the person when they change Space. */
+export function desktopLively(active: boolean): Promise<void> {
+  return native ? invoke("desktop_lively", { active }) : Promise.resolve();
+}
 /** While a speech bubble shows, the whole companion window accepts clicks. */
 export function desktopAttention(active: boolean): Promise<void> {
   return native ? invoke("desktop_attention", { active }) : Promise.resolve();
@@ -83,10 +87,14 @@ export interface DesktopMotion {
   falling: boolean;
   /** Still on its way, even if the behavior has already moved on. */
   moving: boolean;
+  /** Stopped half way onto a screen, looking before coming in. */
+  peeking: boolean;
 }
 export interface DesktopSignals {
   motion(motion: DesktopMotion): void;
   cursor(near: boolean): void;
+  /** It has just come after the person to another Space or display. */
+  followed(): void;
   activity(sense: Sense): void;
 }
 /** Native observations: where the character is heading, the pointer, and the person's activity. */
@@ -95,6 +103,7 @@ export async function connectSignals(
 ): Promise<() => void> {
   const stops = await Promise.all([
     listen<DesktopMotion>("desktop-motion", (e) => signals.motion(e.payload)),
+    listen("desktop-followed", () => signals.followed()),
     listen<boolean>("desktop-cursor", (e) =>
       signals.cursor(e.payload === true),
     ),

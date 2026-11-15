@@ -33,6 +33,7 @@ cargo test --lib --manifest-path src-tauri/Cargo.toml
 | `src-tauri/src/desktop.rs` | Window, tray, the `presence` thread, macOS panel/overlay |
 | `src-tauri/src/motion.rs` | Pure movement across displays |
 | `src-tauri/src/sense.rs` | Front app, sound, idle time → `Activity` |
+| `src-tauri/src/spaces.rs` | macOS Space changes (private window-server list, looked up at run time) |
 | `src-tauri/src/placement.rs` | Saved window placement, pure |
 | `e2e/native-mock.ts` | Fake Tauri IPC used by Playwright |
 

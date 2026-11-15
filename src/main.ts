@@ -23,6 +23,7 @@ import {
   desktopError,
   desktopRoam,
   desktopAttention,
+  desktopLively,
   connectSignals,
   desktopMovement,
   type Movement,
@@ -250,6 +251,9 @@ let sense: Sense = UNKNOWN;
 let sensed = false;
 let falling = false;
 let gliding = false;
+let peeking = false;
+let lively = false;
+let lastFollowLine = 0;
 let careRaw: string | null = null;
 try {
   careRaw = localStorage.getItem(CARE_KEY);
@@ -302,6 +306,7 @@ function applyDesktopState(next: DesktopState) {
   roamer.setActive(false);
   falling = false;
   gliding = false;
+  peeking = false;
   if (!next.awareness) {
     sense = UNKNOWN;
     sensed = false;
@@ -463,17 +468,19 @@ function render() {
       ? previewPose
       : travelling && falling
         ? "jump"
-        : gliding && action !== "walk"
-          ? style // Still on the way back into view after being asked to stop.
-          : reminder
-            ? (["wave", "jump", "angry"] as const)[reminder.level]
-            : travelling
-              ? style
-              : action === "idle" && aware() && vibe(sense) === "watch"
-                ? "sit"
-                : action === "idle" && aware() && grooving(sense)
-                  ? "dance"
-                  : action;
+        : gliding && peeking
+          ? "curious" // Half way onto a screen, having a look first.
+          : gliding && action !== "walk"
+            ? style // Still on the way back into view after being asked to stop.
+            : reminder
+              ? (["wave", "jump", "angry"] as const)[reminder.level]
+              : travelling
+                ? style
+                : action === "idle" && aware() && vibe(sense) === "watch"
+                  ? "sit"
+                  : action === "idle" && aware() && grooving(sense)
+                    ? "dance"
+                    : action;
   const text = reminder
     ? careLine(reminder.kind, reminder.level)
     : compact && !paused && Date.now() < bubbleUntil
@@ -484,6 +491,22 @@ function render() {
   $("bubble-text").textContent = text;
   $("bubble-actions").hidden = !reminder;
   $("care-later").hidden = reminder?.level === 2;
+  const free =
+    native &&
+    compact &&
+    desktopVisible &&
+    desktopState?.roaming === true &&
+    previewPose === "auto" &&
+    action !== "sleep" &&
+    !paused &&
+    !resting &&
+    !state.quiet &&
+    !state.reducedMotion &&
+    !media.matches;
+  if (lively !== free) {
+    lively = free;
+    void desktopLively(lively).catch(() => undefined);
+  }
   if (attention !== (compact && !!text)) {
     attention = compact && !!text;
     void desktopAttention(attention).catch(() => undefined);
@@ -977,9 +1000,22 @@ if (native) {
       direction = motion.direction < 0 ? -1 : 1;
       falling = motion.falling;
       gliding = motion.moving === true;
+      peeking = motion.peeking === true;
       render();
     },
     cursor: noticeCursor,
+    followed() {
+      // A word now and then, not at every change of screen.
+      if (careState.active || Date.now() - lastFollowLine < 90_000) return;
+      lastFollowLine = Date.now();
+      const lines = [
+        "Wait for me!",
+        "Where are we going?",
+        "Right behind you.",
+      ];
+      say(lines[Math.floor(Math.random() * lines.length)], 4500);
+      render();
+    },
     activity: noticeActivity,
   })
     .then((stop) => window.addEventListener("pagehide", stop, { once: true }))

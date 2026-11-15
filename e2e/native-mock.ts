@@ -66,6 +66,8 @@ export async function installNativeMock(
         case "desktop_roam":
           roaming = args.active === true;
           return;
+        case "desktop_lively":
+          return;
         case "desktop_attention":
           attention = args.active === true;
           return;

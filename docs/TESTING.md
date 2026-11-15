@@ -62,6 +62,9 @@ Geometry and IPC tests cover the policy and state transitions. Compilation, pack
 - [ ] Walk across the desktop, switch to Flying and Swimming, and verify distinct animation and paths.
 - [ ] At a work-area edge the walker turns, or walks out and returns from the other side; it is never left out of sight when it stops.
 - [ ] With two or more displays (side by side, stacked, mixed scaling, negative coordinates), each movement style eventually visits every display.
+- [ ] Every arrival on a display starts with a pause half in view, in the curious pose, never a sudden appearance.
+- [ ] Swipe between macOS Spaces in both directions; the companion comes in from the left after moving right and from the right after moving left. With two displays it arrives on the one under the pointer, and never across the edge the displays share.
+- [ ] Asleep, paused, resting, in quiet mode or with reduced motion, it does not chase you between Spaces.
 - [ ] Drag the character into the air and release it in walking mode; it falls to the floor and walks on. A long drag is never interrupted.
 - [ ] Open another application full screen (macOS) or maximized (Windows); the companion is still there, and clicking it does not take focus.
 - [ ] Click through the transparent space around the character into the application underneath; the character itself and a visible speech bubble still take clicks.
@@ -72,7 +75,7 @@ Geometry and IPC tests cover the policy and state transitions. Compilation, pack
 
 Browser tests verify CSS transparency, controls, and mocked native movement requests. Rust tests verify movement across single, side-by-side, stacked and mixed-scale display layouts. These do not replace native macOS/Windows compositor and movement acceptance.
 
-Checked by hand on one Mac (macOS 27, a single 1680 × 1050 display, 0.2.0 development build): the companion appears in another application's full-screen Space, walks along the bottom, wraps from the right edge to the left, and the pointer and window coordinates used for click pass-through agree with the system's. Not yet checked on real hardware: more than one display, Windows, and clicking through by hand.
+Checked by hand on one Mac (macOS 27, a single 1680 × 1050 display, 0.2.0 development build): the companion appears in another application's full-screen Space, walks along the bottom, wraps from the right edge to the left, follows Space changes from the correct side with a pause half in view, and the pointer and window coordinates used for click pass-through agree with the system's. Not yet checked on real hardware: more than one display, Windows, and clicking through by hand.
 
 ## Company and reminder acceptance
 

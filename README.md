@@ -16,7 +16,7 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 - Quiet mode, pause, and reduced motion, including the operating system preference.
 - A transparent, frameless, always-on-top Tauri window with a compact companion mode.
 - A browser preview using the same character and behavior engine.
-- A character-only transparent companion that walks, flies or swims across every display: it leaves one screen and turns up on another, drops to the floor when you let go of it, and looks up when your pointer comes close.
+- A character-only transparent companion that walks, flies or swims across every display: it leaves one screen and peeks in at the edge of another before coming in, follows you when you switch Spaces, drops to the floor when you let go of it, and looks up when your pointer comes close.
 - It stays with you on every macOS Space, including beside full-screen applications, and over maximized windows on Windows.
 - It keeps fitting company: quieter beside code or writing, dancing when music plays, sitting down to watch a video with you, silent in a call, asleep while you are away and glad when you return.
 - Gentle reminders to drink water, rest your eyes and take a break. Ignore one and your friend gets annoyed, then properly cross, until you look after yourself.
@@ -35,6 +35,7 @@ To behave like company rather than a screensaver, the desktop app checks three t
 - which **kind** of application is in front (editor, music player, video player, call, browser and so on), from its name. On Windows the front window's title is also matched against a short list of video sites;
 - whether **sound is playing** (macOS only);
 - how long since the **keyboard or pointer was last used**, and where the pointer is, so the character can notice you and let clicks through.
+- on macOS, **when you switch Spaces** and in which direction, so it can come after you.
 
 Only the resulting category ("coding", "video", "away"…) reaches the interface. Application names and titles are compared against a built-in list and dropped; nothing is stored, logged or sent anywhere, and none of it is included in optional Jev requests. LittleLife never reads your screen, keystrokes, files or browser history. Turn it off with **Little settings → Desktop companion → Notice what I'm doing**; the companion then behaves the same whatever you do.
 
@@ -102,6 +103,7 @@ The frontend uses TypeScript, Vite, and a small Canvas pixel engine. Characters 
 | `src/main.ts` | Input, UI, timing, and local persistence |
 | `src/desktop.ts` | Native commands, state events and tray synchronization |
 | `src-tauri/src/motion.rs` | Walking, flying and swimming across displays |
+| `src-tauri/src/spaces.rs` | Notices macOS Space changes and their direction |
 | `src-tauri/src/sense.rs` | Front application, sound and idle time, reduced to a category |
 | `src-tauri/src/desktop.rs` | Window, tray, movement thread, click pass-through and full-screen overlay |
 

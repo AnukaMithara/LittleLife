@@ -3,6 +3,7 @@ mod desktop;
 mod placement;
 mod motion;
 mod sense;
+mod spaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,7 +18,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             jev::jev_status, jev::jev_save_key, jev::jev_forget_key,
             jev::jev_configure, jev::jev_decide,
-            desktop::desktop_status, desktop::desktop_action, desktop::desktop_roam, desktop::desktop_attention, desktop::desktop_movement
+            desktop::desktop_status, desktop::desktop_action, desktop::desktop_roam, desktop::desktop_attention, desktop::desktop_lively, desktop::desktop_movement
         ])
         .build(tauri::generate_context!())
         .expect("LittleLife could not start")
