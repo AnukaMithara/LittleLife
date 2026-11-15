@@ -13,7 +13,16 @@ import {
   tick,
   type Action,
 } from "./engine";
-import { closeWindow, compactWindow, dragWindow, native } from "./desktop";
+import {
+  closeWindow,
+  compactWindow,
+  connectDesktop,
+  desktopAction,
+  desktopError,
+  dragWindow,
+  native,
+  type DesktopState,
+} from "./desktop";
 import {
   JevController,
   nativeJev,
@@ -43,7 +52,7 @@ app.innerHTML = `
       <div class="vitals"><div><div class="vital-label"><span>Energy</span><span id="energy-value"></span></div><div class="meter" role="meter" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" id="energy-meter"><span id="energy-bar"></span></div></div><div><div class="vital-label"><span>Your bond</span><span id="bond-value"></span></div><div class="meter bond" role="meter" aria-label="Bond" aria-valuemin="0" aria-valuemax="100" id="bond-meter"><span id="bond-bar"></span></div></div></div>
       <div class="actions"><button id="pet-action"><span aria-hidden="true">♡</span> Pet</button><button id="play"><span aria-hidden="true">✧</span> Play</button><button id="rest"><span aria-hidden="true">☾</span> Rest</button></div>
       <div class="bottom-row"><span id="bond-label">Getting acquainted</span><button id="settings-toggle" aria-expanded="false" aria-controls="settings">Little settings <span>⚙</span></button></div>
-      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Reacts to your cursor inside this window. No screen reading or background activity tracking.</p><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select">${CHARACTERS.map((c) => `<option value="${c.id}">${c.name} · ${c.title.toLowerCase()}</option>`).join("")}</select></div><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
+      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Reacts to your cursor inside this window. No screen reading or background activity tracking.</p><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select">${CHARACTERS.map((c) => `<option value="${c.id}">${c.name} · ${c.title.toLowerCase()}</option>`).join("")}</select></div><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="desktop-settings" id="desktop-settings" hidden><legend>Desktop companion</legend><label class="toggle"><span>Keep above other windows</span><input id="desktop-top" type="checkbox" checked/></label><button type="button" id="desktop-pin" class="pause-button">Compact and let clicks pass through</button><p class="settings-note">Click-through applies to the entire companion. To pet or move it again, choose <strong>Interact / restore clicks</strong> in the LittleLife tray or menu-bar icon.</p><div class="desktop-actions"><button type="button" id="desktop-hide">Hide to tray</button><button type="button" id="desktop-reset">Reset position</button></div><p id="desktop-status" class="settings-note" role="status"></p></fieldset><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
       <div class="compact-controls"><button id="expand">↗ <span>Open little corner</span></button><button id="move" aria-label="Drag companion" title="Drag companion">↔</button><button id="compact-quit" aria-label="Quit LittleLife">×</button></div>
     </section>
     <footer class="page-footer"><span>Grows on you. Never grows up.</span><span><span id="provider-label">OFFLINE & CONTENT</span> <i class="dot"></i></span></footer>
@@ -215,6 +224,77 @@ let action: Action = "idle";
 let paused = false;
 let resting = false;
 let compact = false;
+let desktopVisible = !native;
+let desktopState: DesktopState | undefined;
+let desktopBusy = false;
+function applyDesktopState(next: DesktopState) {
+  const shouldFocus =
+    next.visible &&
+    !next.clickThrough &&
+    (compact !== next.compact || !desktopVisible);
+  jev.invalidate();
+  desktopState = next;
+  desktopVisible = next.visible;
+  compact = next.compact;
+  document.body.classList.toggle("compact", compact);
+  $("desktop-settings").hidden = !native;
+  $<HTMLInputElement>("desktop-top").checked = next.alwaysOnTop;
+  for (const id of ["desktop-pin", "desktop-hide"])
+    $<HTMLButtonElement>(id).disabled = !next.trayAvailable || desktopBusy;
+  $("desktop-status").textContent = !next.trayAvailable
+    ? "The tray is unavailable. Hiding and click-through are disabled."
+    : !next.storageAvailable
+      ? "Window preferences cannot be saved. This session remains usable."
+      : "Position, size mode and always-on-top are saved. Click-through is off at every launch.";
+  if (compact) {
+    $("settings").hidden = true;
+    $("settings-toggle").setAttribute("aria-expanded", "false");
+  }
+  positionCharacter();
+  pixelPlayer.fit();
+  render();
+  if (shouldFocus)
+    requestAnimationFrame(() => (compact ? $("expand") : $("compact")).focus());
+}
+async function changeDesktop(
+  action: "hide" | "reset" | "click_through" | "always_on_top",
+  value?: boolean,
+) {
+  if (desktopBusy) return;
+  desktopBusy = true;
+  for (const id of [
+    "desktop-pin",
+    "desktop-hide",
+    "desktop-reset",
+    "desktop-top",
+  ])
+    $<HTMLButtonElement>(id).disabled = true;
+  try {
+    applyDesktopState(await desktopAction(action, value));
+  } catch (error) {
+    notify(desktopError(error));
+  } finally {
+    desktopBusy = false;
+    $("desktop-reset").removeAttribute("disabled");
+    $("desktop-top").removeAttribute("disabled");
+    if (desktopState) applyDesktopState(desktopState);
+  }
+}
+$("desktop-top").addEventListener("change", () => {
+  void changeDesktop(
+    "always_on_top",
+    $<HTMLInputElement>("desktop-top").checked,
+  );
+});
+$("desktop-pin").addEventListener("click", () => {
+  void changeDesktop("click_through", true);
+});
+$("desktop-hide").addEventListener("click", () => {
+  void changeDesktop("hide");
+});
+$("desktop-reset").addEventListener("click", () => {
+  void changeDesktop("reset");
+});
 let cursorNearby = false;
 let lastInteraction = Date.now();
 let overrideUntil = 0;
@@ -269,7 +349,7 @@ function render() {
     facing,
     primary: appearance.primary,
     accent: appearance.accent,
-    paused,
+    paused: paused || !desktopVisible,
     still: state.reducedMotion || media.matches,
   });
   $("character-title").textContent = character.title;
@@ -361,7 +441,11 @@ window.addEventListener("resize", () => {
   pixelPlayer.fit();
 });
 async function setCompact(value: boolean) {
-  await compactWindow(value);
+  const next = await compactWindow(value);
+  if (next) {
+    applyDesktopState(next);
+    return;
+  }
   compact = value;
   document.body.classList.toggle("compact", compact);
   positionCharacter();
@@ -487,7 +571,7 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) activity();
 });
 setInterval(() => {
-  if (document.hidden) return;
+  if (document.hidden || !desktopVisible) return;
   const now = Date.now();
   if (!paused) {
     state = tick(state, action, (now - lastTick) / 1000, now);
@@ -528,6 +612,7 @@ setInterval(() => {
           jevObservation(pet, observation, action),
           () =>
             !document.hidden &&
+            desktopVisible &&
             Date.now() > overrideUntil &&
             canAskJev(
               { ...state, reducedMotion: state.reducedMotion || media.matches },
@@ -558,3 +643,8 @@ setInterval(() => {
 }, 1000);
 save();
 render();
+
+if (native)
+  void connectDesktop(applyDesktopState)
+    .then((stop) => window.addEventListener("pagehide", stop, { once: true }))
+    .catch((error) => notify(desktopError(error)));

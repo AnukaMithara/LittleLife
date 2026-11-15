@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-test/
+__pycache__/
 src-tauri/target/
 src-tauri/gen/
 test-results/

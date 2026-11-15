@@ -1,57 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { installNativeMock } from "./native-mock";
 
 test("native Jev setup clears the key, asks only after consent, and can remove it", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 440, height: 650 });
   await page.clock.install();
-  await page.addInitScript(() => {
-    // Mock only the documented Tauri IPC boundary. No real key or API request is used.
-    const status = {
-      enabled: false,
-      hasKey: false,
-      supported: true,
-      limit: 20,
-      requests: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      retryAfterSeconds: 0,
-    };
-    Object.assign(window, {
-      isTauri: true,
-      __TAURI_INTERNALS__: {
-        metadata: {
-          currentWindow: { label: "main" },
-          currentWebview: { label: "main", windowLabel: "main" },
-        },
-        invoke: async (command: string, args: Record<string, unknown> = {}) => {
-          switch (command) {
-            case "jev_status":
-              return { ...status };
-            case "jev_save_key":
-              status.hasKey = true;
-              return { ...status };
-            case "jev_configure":
-              status.enabled = args.enabled === true;
-              status.limit = Number(args.limit);
-              return { ...status };
-            case "jev_forget_key":
-              status.hasKey = false;
-              status.enabled = false;
-              return { ...status };
-            case "jev_decide":
-              if (!status.enabled) throw "disabled";
-              status.requests++;
-              status.inputTokens += 120;
-              status.outputTokens += 20;
-              return { action: "happy", status: { ...status } };
-            default:
-              throw new Error("Unexpected native command");
-          }
-        },
-      },
-    });
-  });
+  await installNativeMock(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Little settings" }).click();
   await expect(page.getByLabel("Enable Jev this session")).toBeDisabled();
@@ -76,6 +31,16 @@ test("native Jev setup clears the key, asks only after consent, and can remove i
     fullPage: true,
     animations: "disabled",
   });
+  await page.getByRole("button", { name: "Hide to tray" }).click();
+  await page.clock.runFor(65000);
+  await expect(page.locator("#jev-usage")).toContainText("1 / 20");
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        __littlelifeTestTray: (action: string) => Promise<unknown>;
+      }
+    ).__littlelifeTestTray("expand"),
+  );
   await page.getByRole("button", { name: "Remove saved key" }).click();
   await expect(page.getByLabel("Enable Jev this session")).toBeDisabled();
   await expect(page.locator("#provider-label")).toHaveText("OFFLINE & CONTENT");

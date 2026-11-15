@@ -1,0 +1,147 @@
+import type { Page } from "@playwright/test";
+
+export async function installNativeMock(
+  page: Page,
+  options = { trayAvailable: true, compact: false },
+) {
+  await page.addInitScript((options) => {
+    const desktop = {
+      compact: options.compact,
+      clickThrough: false,
+      visible: false,
+      alwaysOnTop: true,
+      trayAvailable: options.trayAvailable,
+      storageAvailable: true,
+    };
+    const jev = {
+      enabled: false,
+      hasKey: false,
+      supported: true,
+      limit: 20,
+      requests: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      retryAfterSeconds: 0,
+    };
+    let nextId = 1;
+    const callbacks = new Map<number, (event: unknown) => void>();
+    const listeners = new Map<number, { event: string; handler: number }>();
+    function emit() {
+      for (const [id, item] of listeners)
+        if (item.event === "desktop-state")
+          callbacks.get(item.handler)?.({
+            event: "desktop-state",
+            id,
+            payload: { ...desktop },
+          });
+    }
+    async function invoke(command: string, args: Record<string, unknown> = {}) {
+      switch (command) {
+        case "plugin:event|listen": {
+          const id = nextId++;
+          listeners.set(id, {
+            event: String(args.event),
+            handler: Number(args.handler),
+          });
+          return id;
+        }
+        case "plugin:event|unlisten":
+          listeners.delete(Number(args.eventId));
+          return;
+        case "desktop_status":
+          return { ...desktop };
+        case "desktop_action":
+          if (
+            (args.action === "hide" || args.action === "click_through") &&
+            !desktop.trayAvailable
+          )
+            throw "tray_unavailable";
+          switch (args.action) {
+            case "ready":
+            case "interact":
+              desktop.visible = true;
+              desktop.clickThrough = false;
+              break;
+            case "expand":
+              desktop.compact = false;
+              desktop.visible = true;
+              desktop.clickThrough = false;
+              break;
+            case "compact":
+              desktop.compact = true;
+              desktop.visible = true;
+              desktop.clickThrough = false;
+              break;
+            case "hide":
+              desktop.visible = false;
+              desktop.clickThrough = false;
+              break;
+            case "always_on_top":
+              desktop.alwaysOnTop = args.value === true;
+              break;
+            case "click_through":
+              desktop.compact = true;
+              desktop.visible = true;
+              desktop.clickThrough = args.value === true;
+              break;
+            case "reset":
+              desktop.visible = true;
+              desktop.clickThrough = false;
+              break;
+            case "quit":
+              desktop.visible = false;
+              break;
+            default:
+              throw "invalid_action";
+          }
+          emit();
+          return { ...desktop };
+        case "jev_status":
+          return { ...jev };
+        case "jev_save_key":
+          jev.hasKey = true;
+          return { ...jev };
+        case "jev_configure":
+          jev.enabled = args.enabled === true;
+          jev.limit = Number(args.limit);
+          return { ...jev };
+        case "jev_forget_key":
+          jev.hasKey = false;
+          jev.enabled = false;
+          return { ...jev };
+        case "jev_decide":
+          if (!desktop.visible) throw "hidden";
+          if (!jev.enabled) throw "disabled";
+          jev.requests++;
+          jev.inputTokens += 120;
+          jev.outputTokens += 20;
+          return { action: "happy", status: { ...jev } };
+        default:
+          throw new Error("Unexpected native command");
+      }
+    }
+    Object.assign(window, {
+      isTauri: true,
+      __littlelifeTestTray: (action: string) =>
+        invoke("desktop_action", { action }),
+      __littlelifeDesktopState: () => ({ ...desktop }),
+      __TAURI_EVENT_PLUGIN_INTERNALS__: {
+        unregisterListener: (_event: string, id: number) =>
+          listeners.delete(id),
+      },
+      __TAURI_INTERNALS__: {
+        metadata: {
+          currentWindow: { label: "main" },
+          currentWebview: { label: "main", windowLabel: "main" },
+        },
+        invoke,
+        transformCallback: (callback: (event: unknown) => void) => {
+          const id = nextId++;
+          callbacks.set(id, callback);
+          return id;
+        },
+        unregisterCallback: (id: number) => callbacks.delete(id),
+      },
+    });
+  }, options);
+}

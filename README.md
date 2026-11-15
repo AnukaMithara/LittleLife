@@ -4,7 +4,7 @@
 
 An offline-first desktop companion for Windows and macOS. Meet **Moss**, an original little leaf spirit that blinks, wanders, naps, and gets very happy to see you. Its appearance is now drawn by a reusable pixel character engine.
 
-This is the first working milestone, not a signed installer release. A personal open-source project by Anuka Mithara, licensed under MIT.
+This is a desktop preview, not a signed installer release. A personal open-source project by Anuka Mithara, licensed under MIT.
 
 ## What works
 
@@ -16,10 +16,16 @@ This is the first working milestone, not a signed installer release. A personal 
 - Quiet mode, pause, and reduced motion, including the operating system preference.
 - A transparent, frameless, always-on-top Tauri window with a compact companion mode.
 - A browser preview using the same character and behavior engine.
+- Tray/menu-bar recovery, saved position/view mode, always-on-top, and explicit compact click-through.
+- Downloadable unsigned Windows and Apple Silicon/Intel Mac test builds in GitHub Actions.
 - No account, analytics, or API key required for offline operation.
 - Optional Jev decisions in the Windows/macOS app, using your own key in the OS credential store.
 
-Moss rests after two minutes without interaction **inside LittleLife**. This is not system-wide idle detection. Walking happens within the companion window. The app does not read your screen, track other applications, follow windows, or inspect global mouse/keyboard activity. The transparent rectangle still receives clicks; pixel-level click-through is not implemented.
+Moss rests after two minutes without interaction **inside LittleLife**. This is not system-wide idle detection. Walking happens within the companion window. The app does not read your screen, track other applications, follow windows, or inspect global mouse/keyboard activity. Normal mode receives pointer events across its window. Optional compact click-through passes all clicks through the entire window, including the character, until restored from the tray. Pixel-level hit testing is not implemented.
+
+## Download a desktop preview
+
+See [test builds and desktop controls](docs/TEST-BUILDS.md) for Windows setup/portable downloads, Apple Silicon/Intel DMGs, tray recovery, and the remaining unsigned-build limitations.
 
 ## Try the browser preview
 
@@ -43,7 +49,7 @@ npm ci
 npm run desktop
 ```
 
-Drag the **YOUR LITTLE CORNER** heading to move the window. In compact mode, drag the ↔ handle. Use × to quit. There is no tray process left behind.
+Drag the **YOUR LITTLE CORNER** heading to move the window. In compact mode, drag the ↔ handle. Use × or **Quit LittleLife** in the tray to exit. **Hide to tray** leaves the companion available through its tray/menu-bar icon.
 
 To build an installer on your own machine:
 
@@ -51,7 +57,7 @@ To build an installer on your own machine:
 npm run tauri build
 ```
 
-Build output appears in `src-tauri/target/release/bundle/`. Build on each target OS. macOS transparency uses Tauri's macOS private API support, so this configuration is intended for direct distribution rather than Mac App Store submission. Signing, notarization, auto-updates, and published binaries are not configured yet.
+Build output appears in `src-tauri/target/release/bundle/`. Build on each target OS. macOS transparency uses Tauri's macOS private API support, so this configuration is intended for direct distribution rather than Mac App Store submission. CI produces downloadable test installers. Signing, notarization, auto-updates, and published GitHub releases are not configured yet.
 
 ## Checks
 
@@ -75,7 +81,7 @@ The frontend uses TypeScript, Vite, and a small Canvas pixel engine. Characters 
 | `src/pixel/` | Character definitions, pixel composition, pose clips, palettes and playback |
 | `src/style.css` | Character animations and interface |
 | `src/main.ts` | Input, UI, timing, and local persistence |
-| `src/desktop.ts` | Small native window bridge |
+| `src/desktop.ts` | Native commands, state events and tray synchronization |
 | `src-tauri/` | Desktop configuration and Rust entry point |
 
 The decision loop runs every six seconds, with a one-second needs tick. Pixel animations run independently in the Canvas player. Hidden webviews suspend simulation work. State is written every 15 seconds, on explicit interactions, and on page exit when available. Browser preview and desktop app have separate local storage. Clearing app/browser data resets your companion. If storage is blocked, the app stays usable and tells you the visit cannot be saved.

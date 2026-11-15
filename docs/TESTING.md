@@ -20,7 +20,7 @@ Native behavior needs actual Windows and macOS verification. Do not mark an item
 - [ ] Build an installer, install it, launch it, and uninstall it.
 - [ ] Measure idle CPU/memory and record device/OS/version, rather than assuming low usage.
 
-Known first-milestone limitations: the overlay rectangle receives pointer events, cursor observation is local to the window, walking stays inside the window, window position is not persisted, and there is no tray recovery, system-wide idle detection, or signed distribution.
+Known first-milestone limitations: the overlay rectangle receives pointer events, cursor observation is local to the window, walking stays inside the window, there is no system-wide idle detection or signed distribution. Whole-window click-through is explicit and reversible through tray recovery.
 
 ## Optional Jev acceptance
 
@@ -42,3 +42,16 @@ Browser IPC mocks and Rust response fixtures use no real API credentials. A live
 - [ ] Use pet/play/rest during a pose preview; automatic behavior should resume without resetting bond or energy.
 
 The pose preview in PIXEL-ENGINE.md is generated from engine output. No reference image is loaded by the runtime.
+
+## Desktop preview acceptance
+
+- [ ] Install the matching Windows or Mac artifact and verify its BUILD.json commit and SHA256SUMS.
+- [ ] Hide, show, compact, expand, reset placement and quit using the real native tray/menu-bar icon.
+- [ ] Enable click-through, click underlying applications, then recover using Interact / restore clicks.
+- [ ] Quit and relaunch from click-through; it must start with normal mouse interaction.
+- [ ] Move near each monitor edge, quit/relaunch, and repeat with mixed DPI, negative monitor coordinates, changed resolution and a removed monitor.
+- [ ] Start a second copy and reopen from the macOS Dock; the existing companion must return.
+- [ ] Lock/deny configuration-directory writes; the UI must report unsaved window settings while remaining usable.
+- [ ] Hide an enabled Jev companion and confirm no new requests are sent while hidden.
+
+Geometry and IPC tests cover the policy and state transitions. Compilation, packaging and browser mocks do not replace these real OS checks.
