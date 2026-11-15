@@ -13,7 +13,7 @@ Click **Characters ↗** on the companion card, or open **Little settings → Pi
 - Choose front, right, back, or left. Automatic direction follows walking; left mirrors the authored right view.
 - Preview idle, walk, sleep, jump, curious, happy, sit, or wave.
 
-Normal companion behavior and Jev use the existing six actions. Sitting and waving are extra visual previews, so no new model permission or API call is needed. A care action returns the renderer to automatic behavior. Preview poses are not saved across launches. Appearance, colors and direction are saved separately from pet state; changing a look keeps energy and bond. A custom name is preserved unless it matches the previous character's default name.
+Normal companion behavior and Jev use the existing six actions. Sitting, waving, flying and swimming are extra visual poses, so no new model permission or API call is needed. A care action returns the renderer to automatic behavior. Preview poses are not saved across launches. Appearance, colors and direction are saved separately from pet state; changing a look keeps energy and bond. A custom name is preserved unless it matches the previous character's default name.
 
 ## Model
 
@@ -61,6 +61,8 @@ validateCharacter(pebble);
 The drawing helpers in `art.ts` create grids using rectangles, ellipses and polygons. A detailed character uses separate head, face, hair, limbs, clothing, and equipment parts. The sample above illustrates the data contract, not a finished character. Keep the `a` and `r` palette roles for shared heart/sleep effects.
 
 ## Runtime and verification
+
+Native exploring can use flying/swimming clips while keeping the behavior/model action vocabulary unchanged. The gallery image above predates those two added clips.
 
 The player ticks at eight updates per second and repaints only when the sampled frame, expression, facing, character or colors change. It stops its timer while hidden, paused, or in reduced motion. Reduced motion samples a stable pose. Canvas image smoothing is disabled, display size uses integer multiples, and desktop wandering moves in pixel steps. These are implementation constraints, not measured CPU or battery guarantees.
 

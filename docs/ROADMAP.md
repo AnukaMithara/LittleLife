@@ -17,6 +17,7 @@ Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account
 - Real Windows and macOS overlay testing, including transparent hit testing.
 - Implemented: tray/menu recovery, explicit whole-window click-through, hide/show and single-instance restoration. A global shortcut remains optional follow-up.
 - Implemented: debounced placement/view/always-on-top persistence, scale-aware layout, removed-monitor fallback and tray reset.
+- Implemented: character-only root transparency and bounded desktop walking/flying/swimming with dedicated pixel clips and motion stop controls.
 - Respect full-screen applications and presentations.
 - Measure CPU, memory, and power use, including during extended idle periods.
 - Implemented: unsigned Windows setup/portable artifacts and Apple Silicon/Intel DMGs with ad-hoc bundle signatures and embedded-signature verification. Signed/notarized public distribution remains a release step.
@@ -24,7 +25,7 @@ Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account
 
 ## Pixel engine: implemented
 
-Code-defined pixel parts and a shared rig now drive four original characters, four facings, eight pose clips, expression variants, outfit/accent palettes, integer Canvas scaling, and saved appearance. The workshop previews poses without changing the behavioral engine. See PIXEL-ENGINE.md.
+Code-defined pixel parts and a shared rig now drive four original characters, four facings, ten pose clips, expression variants, outfit/accent palettes, integer Canvas scaling, and saved appearance. The workshop previews poses without changing the behavioral engine. See PIXEL-ENGINE.md.
 
 ## Bring your own little friend: future imports
 

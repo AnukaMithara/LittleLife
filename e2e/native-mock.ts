@@ -5,7 +5,10 @@ export async function installNativeMock(
   options = { trayAvailable: true, compact: false },
 ) {
   await page.addInitScript((options) => {
+    const position = { x: 100, y: 100, steps: 0 };
     const desktop = {
+      roaming: true,
+      movement: "walk",
       compact: options.compact,
       clickThrough: false,
       visible: false,
@@ -48,6 +51,17 @@ export async function installNativeMock(
         case "plugin:event|unlisten":
           listeners.delete(Number(args.eventId));
           return;
+        case "desktop_step":
+          if (!desktop.compact || !desktop.visible || !desktop.roaming)
+            return 0;
+          position.x += 4;
+          position.steps++;
+          if (desktop.movement !== "walk") position.y += 2;
+          return 1;
+        case "desktop_movement":
+          desktop.movement = String(args.movement);
+          emit();
+          return { ...desktop };
         case "desktop_status":
           return { ...desktop };
         case "desktop_action":
@@ -75,6 +89,9 @@ export async function installNativeMock(
             case "hide":
               desktop.visible = false;
               desktop.clickThrough = false;
+              break;
+            case "roaming":
+              desktop.roaming = args.value === true;
               break;
             case "always_on_top":
               desktop.alwaysOnTop = args.value === true;
@@ -125,6 +142,7 @@ export async function installNativeMock(
       __littlelifeTestTray: (action: string) =>
         invoke("desktop_action", { action }),
       __littlelifeDesktopState: () => ({ ...desktop }),
+      __littlelifeDesktopPosition: () => ({ ...position }),
       __TAURI_EVENT_PLUGIN_INTERNALS__: {
         unregisterListener: (_event: string, id: number) =>
           listeners.delete(id),

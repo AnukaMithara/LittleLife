@@ -16,12 +16,13 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 - Quiet mode, pause, and reduced motion, including the operating system preference.
 - A transparent, frameless, always-on-top Tauri window with a compact companion mode.
 - A browser preview using the same character and behavior engine.
+- A character-only transparent companion with walking, flying and swimming styles across the current desktop display.
 - Tray/menu-bar recovery, saved position/view mode, always-on-top, and explicit compact click-through.
 - Downloadable Windows and Apple Silicon/Intel Mac test builds in GitHub Actions. Mac previews have ad-hoc bundle signatures; publisher signing/notarization remain pending.
 - No account, analytics, or API key required for offline operation.
 - Optional Jev decisions in the Windows/macOS app, using your own key in the OS credential store.
 
-Moss rests after two minutes without interaction **inside LittleLife**. This is not system-wide idle detection. Walking happens within the companion window. The app does not read your screen, track other applications, follow windows, or inspect global mouse/keyboard activity. Normal mode receives pointer events across its window. Optional compact click-through passes all clicks through the entire window, including the character, until restored from the tray. Pixel-level hit testing is not implemented.
+Moss rests after two minutes without interaction **inside LittleLife**. This is not system-wide idle detection. In the native app, character-only mode moves its small transparent window around the current display’s work area, with walking, flying and swimming styles. Expanded controls and browser previews keep movement inside the page. Movement pauses for quiet mode, reduced motion, rest and pause. The app does not read your screen, track other applications, follow windows, or inspect global mouse/keyboard activity. Normal mode receives pointer events across its window. Optional compact click-through passes all clicks through the entire window, including the character, until restored from the tray. Pixel-level hit testing is not implemented.
 
 ## Download a desktop preview
 
@@ -36,7 +37,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:1420`. Click Moss to pet them, or use the three action buttons. Open **Little settings** to rename Moss, pause, or change preferences. The arrow in the top-right switches to compact mode; use **Open little corner** or Escape to return.
+Open `http://localhost:1420`. Click Moss to pet them, or use the three action buttons. Open **Little settings** to rename Moss, pause, or change preferences. The arrow in the top-right switches to compact mode; double-click/right-click the character or press Escape to return.
 
 On Windows PowerShell, use `npm.cmd` instead of `npm` if local script execution policy prevents npm.ps1 from running.
 
@@ -49,7 +50,7 @@ npm ci
 npm run desktop
 ```
 
-Drag the **YOUR LITTLE CORNER** heading to move the window. In compact mode, drag the ↔ handle. Use × or **Quit LittleLife** in the tray to exit. **Hide to tray** leaves the companion available through its tray/menu-bar icon.
+Drag the **YOUR LITTLE CORNER** heading to move the window. In compact mode, drag the character itself. Double-click/right-click it or use **Open LittleLife** in the tray to open controls. Choose Walking, Flying or Swimming in **Little settings → Desktop companion**. Use × or **Quit LittleLife** in the tray to exit. **Hide to tray** leaves the companion available through its tray/menu-bar icon.
 
 To build an installer on your own machine:
 

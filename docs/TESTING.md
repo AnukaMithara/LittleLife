@@ -8,7 +8,7 @@ Native behavior needs actual Windows and macOS verification. Do not mark an item
 - [ ] The area around the companion is transparent and there is no opaque frame.
 - [ ] The companion stays above a normal application window.
 - [ ] Drag the heading to another part of the screen.
-- [ ] Enter compact mode, drag the ↔ handle, and expand again.
+- [ ] Enter compact mode, verify only the character is visible with wallpaper around it, drag the character, and double-click/right-click it to reopen controls.
 - [ ] Resize near the screen edges; expansion remains within the monitor work area.
 - [ ] Repeat on an external monitor with different display scaling.
 - [ ] Pet, play, rest, wake, and cursor curiosity animate without visual artifacts.
@@ -56,3 +56,13 @@ The pose preview in PIXEL-ENGINE.md is generated from engine output. No referenc
 - [ ] Hide an enabled Jev companion and confirm no new requests are sent while hidden.
 
 Geometry and IPC tests cover the policy and state transitions. Compilation, packaging and browser mocks do not replace these real OS checks.
+
+## Roaming acceptance
+
+- [ ] Walk across the desktop, switch to Flying and Swimming, and verify distinct animation and paths.
+- [ ] At all four work-area edges, the native window remains visible and turns direction; repeat on scaled/negative-coordinate displays.
+- [ ] Pause, rest, quiet mode, reduced motion and Hide stop both visible motion and new native movement requests.
+- [ ] Dragging stays under user control; expanding stops roaming; restarting preserves the selected style and roaming preference.
+- [ ] Transparent surroundings remain transparent after compact/expand cycles, and the panel/speech/buttons never appear in companion mode.
+
+Browser tests verify CSS transparency, controls, and mocked native movement requests. Rust tests verify scaled motion geometry. These do not replace native macOS/Windows compositor and movement acceptance.

@@ -10,6 +10,8 @@ export const POSES = [
   "happy",
   "sit",
   "wave",
+  "fly",
+  "swim",
 ] as const;
 export const FACINGS = ["front", "right", "back", "left"] as const;
 export type Pose = (typeof POSES)[number];
@@ -51,6 +53,54 @@ export interface Clip {
   frames: readonly Frame[];
 }
 export const CLIPS: Record<Pose, Clip> = {
+  fly: {
+    frames: [
+      {
+        duration: 180,
+        bones: {
+          root: { y: -2 },
+          leftArm: { angle: 95 },
+          rightArm: { angle: -95 },
+          leftLeg: { angle: 15 },
+          rightLeg: { angle: -15 },
+        },
+      },
+      {
+        duration: 180,
+        bones: {
+          root: { y: -5 },
+          leftArm: { angle: 145 },
+          rightArm: { angle: -145 },
+          leftLeg: { angle: -10 },
+          rightLeg: { angle: 10 },
+        },
+      },
+    ],
+  },
+  swim: {
+    frames: [
+      {
+        duration: 240,
+        bones: {
+          body: { angle: -8, y: 1 },
+          leftArm: { angle: 75 },
+          rightArm: { angle: -35 },
+          leftLeg: { angle: -25 },
+          rightLeg: { angle: 25 },
+        },
+      },
+      {
+        duration: 240,
+        bones: {
+          body: { angle: 8, y: -1 },
+          leftArm: { angle: 35 },
+          rightArm: { angle: -75 },
+          leftLeg: { angle: 25 },
+          rightLeg: { angle: -25 },
+        },
+      },
+    ],
+  },
   idle: {
     frames: [
       { duration: 600 },
