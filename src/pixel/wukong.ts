@@ -1,5 +1,6 @@
 import { Pixels, part } from "./art";
 import {
+  POSES,
   validateCharacter,
   type Clip,
   type Expression,
@@ -7,516 +8,722 @@ import {
   type Palette,
   type Part,
   type PixelCharacter,
+  type Pose,
 } from "./engine";
 
 /**
- * An original take on the Monkey King of the old tale: feathered circlet, staff
- * across the back, and a golden cloud that appears whenever he takes to the air.
- * He is drawn at double detail (a 96 × 128 authoring space) and is the worked
- * example of a character with its own clips, pose-only parts, a favourite way of
- * moving and his own lines.
+ * An original Monkey King after the old tale, drawn as a warrior rather than a
+ * mascot: adult proportions, armour, a long tail and a staff, and a lunge on a
+ * cloud whenever he takes to the air.
+ *
+ * He uses everything a character can bring: double detail, his own skeleton, his
+ * own clips, art that appears only in some poses, a favourite way of moving and
+ * his own lines.
  */
 const palette: Palette = {
-  o: "#2a1c22",
-  e: "#1d1418",
-  s: "#eec98e",
-  t: "#c9975f",
-  h: "#f8e2b0",
-  u: "#74492f",
-  n: "#4a2b1c",
-  m: "#96684a",
-  // Robe: the recolorable outfit.
-  p: "#96243a",
-  q: "#66172a",
-  r: "#c0465a",
-  // Cloud and trim: the recolorable accent.
-  a: "#f4a62f",
-  b: "#dc7a2b",
-  c: "#ffd884",
-  g: "#f2c33f",
-  j: "#a56f1c",
-  k: "#ffe993",
-  d: "#5a5e8c",
-  x: "#3c4064",
-  f: "#7478a6",
-  z: "#ea7c3a",
-  y: "#d98ab8",
-  i: "#e23b4e",
-  l: "#9e2036",
-  w: "#ffffff",
-  v: "#c6c2d6",
+  o: "#1b1216",
+  e: "#121015",
+  // Fur.
+  u: "#5d3524",
+  n: "#3a2016",
+  m: "#83502f",
+  // Face and hands.
+  s: "#d9a877",
+  t: "#ad7b52",
+  h: "#eecb9d",
+  // Armour: the recolorable outfit.
+  p: "#8f202c",
+  q: "#5c1420",
+  r: "#bd363f",
+  // Scarf and sash: the recolorable accent.
+  a: "#cf3d2e",
+  b: "#8e2320",
+  c: "#ec7350",
+  g: "#dba63c",
+  j: "#94661f",
+  k: "#f7d67f",
+  y: "#4f2c5a",
+  x: "#33203f",
+  d: "#76838f",
+  f: "#aab7c3",
+  i: "#a52b2b",
+  l: "#6c1b1e",
+  z: "#4fd197",
+  w: "#f5f3ef",
+  v: "#c6cbd8",
 };
-const CLOUD_POSES = ["fly", "swim", "sit", "sleep"] as const;
-type View = "front" | "right" | "back";
+const AIRBORNE: readonly Pose[] = ["fly", "swim"];
+const GROUNDED = POSES.filter((pose) => !AIRBORNE.includes(pose));
+type Point = [number, number];
 
-function head(view: View): Grid {
-  const p = new Pixels(50, 48);
-  if (view === "right")
+/** A limb or ribbon: one thick stroke through several points. */
+function stroke(p: Pixels, points: Point[], thick: number, color: string) {
+  for (let n = 1; n < points.length; n++)
+    p.line(
+      points[n - 1][0],
+      points[n - 1][1],
+      points[n][0],
+      points[n][1],
+      color,
+      thick,
+    );
+  return p;
+}
+const shifted = (points: Point[], dx: number, dy: number): Point[] =>
+  points.map(([x, y]) => [x + dx, y + dy]);
+
+function head(back = false): Grid {
+  const p = new Pixels(30, 32);
+  // A swept-back mane.
+  p.polygon(
+    [
+      [4, 16],
+      [1, 9],
+      [6, 11],
+      [5, 3],
+      [10, 8],
+      [12, 1],
+      [15, 7],
+      [19, 1],
+      [20, 8],
+      [25, 3],
+      [24, 11],
+      [29, 9],
+      [26, 17],
+      [26, 25],
+      [4, 25],
+    ],
+    "u",
+  )
+    .line(7, 8, 9, 13, "m")
+    .line(13, 5, 14, 11, "m")
+    .line(19, 5, 19, 11, "m")
+    .line(4, 13, 5, 20, "n")
+    .line(26, 13, 25, 20, "n");
+  if (back)
     return p
-      .ellipse(5, 2, 38, 42, "u")
       .polygon(
         [
-          [6, 20],
-          [1, 25],
-          [6, 26],
-          [2, 32],
-          [8, 31],
-          [6, 37],
-          [13, 34],
+          [6, 14],
+          [24, 14],
+          [22, 28],
+          [8, 28],
         ],
         "u",
       )
-      .ellipse(9, 5, 16, 7, "m")
-      .ellipse(8, 28, 20, 13, "n")
-      .ellipse(22, 10, 22, 30, "s")
-      .ellipse(24, 12, 10, 9, "h")
-      .ellipse(37, 23, 11, 12, "s")
-      .ellipse(40, 25, 7, 6, "h")
-      .rect(27, 38, 14, 1, "t")
-      .dot(46, 27, "t")
-      .ellipse(14, 18, 8, 12, "s")
-      .ellipse(16, 21, 4, 7, "t")
+      .line(11, 16, 12, 26, "n")
+      .line(18, 16, 18, 26, "n")
+      .line(15, 14, 15, 27, "m")
+      .rect(7, 12, 16, 2, "g")
       .outline("o")
       .grid();
-  p.ellipse(3, 2, 44, 42, "u");
-  for (const flip of [false, true]) {
-    const side = new Pixels(50, 48).polygon(
-      [
-        [4, 21],
-        [1, 27],
-        [5, 26],
-        [2, 33],
-        [7, 31],
-        [6, 37],
-        [12, 34],
-      ],
-      "u",
-    );
-    if (flip) side.mirror();
-    side.grid().forEach((row, y) =>
-      [...row].forEach((cell, x) => {
-        if (cell !== ".") p.dot(x, y, cell);
-      }),
-    );
-  }
-  p.polygon(
-    [
-      [19, 5],
-      [22, 1],
-      [25, 4],
-      [28, 1],
-      [31, 5],
-    ],
-    "u",
-  ).ellipse(10, 4, 16, 7, "m");
-  if (view === "back")
-    return p
-      .ellipse(12, 12, 26, 8, "m")
-      .line(14, 28, 18, 33, "n")
-      .line(24, 30, 25, 36, "n")
-      .line(35, 28, 31, 33, "n")
-      .ellipse(1, 18, 7, 11, "s")
-      .ellipse(42, 18, 7, 11, "s")
-      .outline("o")
-      .grid();
-  p.ellipse(8, 30, 34, 13, "n");
   return (
     p
-      // A heart of bare face inside the fur.
-      .ellipse(9, 11, 17, 17, "s")
-      .ellipse(24, 11, 17, 17, "s")
-      .ellipse(9, 16, 32, 25, "s")
-      .ellipse(11, 13, 9, 7, "h")
-      .ellipse(15, 27, 20, 12, "h")
-      .rect(17, 39, 16, 1, "t")
-      // Ears.
-      .ellipse(1, 18, 7, 11, "s")
-      .ellipse(3, 21, 3, 6, "t")
-      .ellipse(42, 18, 7, 11, "s")
-      .ellipse(44, 21, 3, 6, "t")
+      .ellipse(2, 15, 4, 6, "s")
+      .ellipse(24, 15, 4, 6, "s")
+      .ellipse(7, 11, 16, 18, "s")
+      // Fur closes in over the brow and down the cheeks.
+      .polygon(
+        [
+          [7, 11],
+          [23, 11],
+          [23, 15],
+          [15, 18],
+          [7, 15],
+        ],
+        "u",
+      )
+      .polygon(
+        [
+          [6, 15],
+          [9, 16],
+          [9, 26],
+          [7, 23],
+        ],
+        "u",
+      )
+      .polygon(
+        [
+          [24, 15],
+          [21, 16],
+          [21, 26],
+          [23, 23],
+        ],
+        "u",
+      )
+      .ellipse(10, 20, 10, 8, "h")
+      .rect(11, 28, 8, 1, "t")
+      // A gold circlet with a green stone.
+      .rect(7, 11, 16, 2, "g")
+      .rect(7, 11, 16, 1, "k")
+      .rect(14, 10, 2, 3, "z")
       .outline("o")
       .grid()
   );
 }
-function face(expression: Expression, profile = false): Grid {
-  const p = new Pixels(50, 48);
-  const eyes = profile ? [31] : [13, 28];
-  eyes.forEach((x, index) => {
-    const inner = profile || index === 1;
-    // Brows slanting down toward the nose: sure of himself.
-    if (inner) p.line(x + 9, 15, x, 18, "n", 2);
-    else p.line(x, 15, x + 9, 18, "n", 2);
-    if (expression === "normal")
-      p.ellipse(x, 19, 9, 9, "w")
-        .rect(x, 19, 9, 1, "o")
-        .ellipse(x + (inner ? 1 : 2), 21, 6, 6, "g")
-        .rect(x + (inner ? 2 : 4), 23, 3, 3, "e")
-        .dot(x + (inner ? 2 : 3), 22, "w");
-    else if (expression === "happy")
-      p.line(x, 25, x + 4, 21, "o", 2).line(x + 4, 21, x + 8, 25, "o", 2);
-    else p.rect(x, 23, 9, 2, "o").rect(x + 1, 25, 7, 1, "t");
-  });
-  if (profile) {
-    p.dot(46, 28, "t");
-    if (expression === "happy")
-      p.ellipse(38, 31, 8, 5, "o").rect(40, 33, 4, 1, "i");
-    else p.rect(38, 33, 8, 1, "o").rect(43, 34, 2, 2, "w");
-    return p.grid();
-  }
-  p.dot(23, 29, "t").dot(26, 29, "t");
-  if (expression === "happy")
-    p.ellipse(19, 31, 12, 7, "o")
-      .rect(21, 34, 8, 2, "i")
-      .rect(22, 32, 6, 1, "w");
-  // A sideways grin with one fang showing.
-  else
-    p.rect(20, 34, 10, 1, "o")
-      .dot(30, 33, "o")
-      .dot(19, 33, "o")
-      .rect(27, 35, 2, 2, "w");
+function face(expression: Expression): Grid {
+  const p = new Pixels(30, 32);
+  // Heavy brows drawn down toward the nose.
+  p.line(9, 15, 13, 17, "n", 1).line(21, 15, 17, 17, "n", 1);
+  if (expression === "normal")
+    p.rect(10, 18, 4, 2, "w")
+      .rect(16, 18, 4, 2, "w")
+      .rect(12, 18, 2, 2, "z")
+      .rect(16, 18, 2, 2, "z")
+      .dot(13, 19, "e")
+      .dot(16, 19, "e");
+  else if (expression === "happy")
+    p.line(10, 19, 12, 17, "o")
+      .line(12, 17, 14, 19, "o")
+      .line(16, 19, 18, 17, "o")
+      .line(18, 17, 20, 19, "o");
+  else p.rect(10, 19, 4, 1, "o").rect(16, 19, 4, 1, "o");
+  p.dot(14, 22, "t").dot(16, 22, "t");
+  if (expression === "happy") p.rect(12, 25, 6, 2, "o").rect(13, 25, 4, 1, "w");
+  // A set mouth, one corner lifted.
+  else p.rect(12, 25, 6, 1, "o").dot(18, 24, "o");
   return p.grid();
 }
-/** A gold circlet with two long striped feathers sweeping up and out. */
-function circlet(view: View): Grid {
-  const p = new Pixels(64, 40);
-  const feather = (points: [number, number][], flip: boolean) => {
-    let length = 0;
-    for (let n = 1; n < points.length; n++) {
-      const [x0, y0] = points[n - 1],
-        [x1, y1] = points[n];
-      const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-      for (let i = 0; i < steps; i++, length++) {
-        const x = Math.round(x0 + ((x1 - x0) * i) / steps),
-          y = Math.round(y0 + ((y1 - y0) * i) / steps);
-        p.rect(
-          flip ? 61 - x : x,
-          y,
-          3,
-          2,
-          Math.floor(length / 3) % 2 ? "o" : "w",
-        );
-      }
-    }
-  };
-  const sweep: [number, number][] = [
-    [27, 26],
-    [24, 19],
-    [18, 12],
-    [11, 6],
-    [7, 2],
-    [10, 0],
-    [15, 2],
-  ];
-  if (view !== "right") feather(sweep, false);
-  feather(sweep, true);
-  p.rect(9, 27, 46, 5, "g").rect(10, 27, 44, 1, "k").rect(9, 31, 46, 1, "j");
-  if (view === "front")
-    p.polygon(
-      [
-        [25, 28],
-        [32, 17],
-        [39, 28],
-      ],
-      "g",
-    )
-      .line(26, 27, 32, 18, "k")
-      .ellipse(30, 22, 4, 4, "i")
-      .dot(31, 23, "w")
-      .ellipse(13, 26, 5, 5, "g")
-      .ellipse(46, 26, 5, 5, "g");
-  if (view === "right")
-    p.polygon(
-      [
-        [44, 28],
-        [51, 18],
-        [56, 28],
-      ],
-      "g",
-    ).ellipse(48, 23, 4, 4, "i");
-  return p.outline("o").grid();
-}
-function staff(): Grid {
-  return new Pixels(92, 58)
-    .line(5, 53, 87, 5, "i", 4)
-    .line(6, 55, 88, 7, "l", 2)
-    .line(5, 53, 17, 46, "g", 5)
-    .line(75, 12, 87, 5, "g", 5)
-    .line(4, 52, 16, 45, "k", 1)
-    .line(74, 11, 86, 4, "k", 1)
-    .line(18, 43, 21, 48, "j", 2)
-    .line(71, 12, 74, 17, "j", 2)
-    .outline("o")
-    .grid();
-}
-function tail(): Grid {
-  const p = new Pixels(36, 40);
-  const curl: [number, number][] = [
-    [34, 31],
-    [22, 35],
-    [10, 31],
-    [5, 21],
-    [8, 10],
-    [16, 5],
-    [23, 9],
-    [23, 16],
-    [17, 18],
-  ];
-  for (let n = 1; n < curl.length; n++)
-    p.line(curl[n - 1][0], curl[n - 1][1], curl[n][0], curl[n][1], "u", 5);
-  for (let n = 1; n < 6; n++)
-    p.line(
-      curl[n - 1][0],
-      curl[n - 1][1] - 2,
-      curl[n][0],
-      curl[n][1] - 2,
-      "m",
-      1,
-    );
-  return p.outline("o").grid();
-}
-function leg(): Grid {
-  return (
-    new Pixels(16, 30)
-      .polygon(
-        [
-          [2, 0],
-          [14, 0],
-          [13, 20],
-          [3, 20],
-        ],
-        "d",
-      )
-      .rect(10, 1, 3, 19, "x")
-      .rect(4, 2, 2, 14, "f")
-      .line(8, 3, 9, 17, "x")
-      // A soft white boot with a dark sole.
-      .rect(2, 19, 12, 7, "w")
-      .rect(2, 19, 12, 1, "v")
-      .rect(10, 20, 4, 6, "v")
-      .rect(1, 26, 14, 2, "o")
-      .outline("o")
-      .grid()
-  );
-}
-function torso(view: View): Grid {
-  const p = new Pixels(40, 43).polygon(
+function torso(back = false): Grid {
+  const p = new Pixels(46, 36);
+  // A scarf wound round the neck, its end thrown over one shoulder.
+  p.polygon(
     [
-      [8, 1],
-      [32, 1],
-      [38, 12],
-      [35, 41],
-      [5, 41],
-      [2, 12],
+      [15, 1],
+      [31, 1],
+      [34, 7],
+      [23, 11],
+      [12, 7],
+    ],
+    "a",
+  )
+    .line(14, 6, 23, 9, "b", 2)
+    .line(17, 2, 29, 2, "c");
+  p.polygon(
+    [
+      [12, 5],
+      [5, 10],
+      [1, 18],
+      [6, 15],
+      [10, 10],
+    ],
+    "a",
+  ).line(4, 13, 9, 9, "b");
+  // Breastplate narrowing to the waist.
+  p.polygon(
+    [
+      [9, 8],
+      [37, 8],
+      [39, 16],
+      [34, 29],
+      [12, 29],
+      [7, 16],
     ],
     "p",
-  );
-  p.polygon(
-    [
-      [28, 2],
-      [32, 2],
-      [37, 12],
-      [35, 40],
-      [28, 40],
-    ],
-    "q",
   )
-    .rect(5, 11, 3, 12, "r")
-    .line(13, 15, 12, 24, "q")
-    .line(26, 15, 27, 24, "q");
-  if (view !== "back")
-    p.polygon(
+    .polygon(
       [
-        [10, 1],
-        [30, 1],
-        [20, 17],
+        [30, 9],
+        [37, 9],
+        [38, 16],
+        [34, 28],
+        [29, 28],
       ],
-      "g",
+      "q",
     )
-      .polygon(
-        [
-          [13, 1],
-          [27, 1],
-          [20, 12],
-        ],
-        "s",
-      )
-      .line(11, 2, 20, 16, "k")
-      .line(17, 4, 20, 9, "t");
-  else p.rect(9, 3, 22, 18, "q").rect(11, 4, 16, 14, "p");
-  // Belt, tiger-skin wrap and a hanging sash.
-  p.rect(4, 24, 32, 4, "g").rect(4, 24, 32, 1, "k").rect(4, 27, 32, 1, "j");
+    .polygon(
+      [
+        [12, 11],
+        [21, 11],
+        [20, 18],
+        [13, 17],
+      ],
+      "r",
+    )
+    .line(23, 11, 23, 28, "q")
+    .line(13, 21, 33, 21, "q")
+    .line(14, 25, 32, 25, "q");
+  if (back)
+    p.rect(12, 10, 22, 18, "q")
+      .line(23, 10, 23, 28, "p")
+      .line(13, 18, 33, 18, "p");
+  else p.line(9, 9, 37, 9, "g").line(23, 10, 23, 13, "g", 2);
+  // Layered gold shoulder guards.
+  for (const x of [1, 31])
+    p.ellipse(x, 5, 14, 10, "g")
+      .ellipse(x + 2, 6, 8, 3, "k")
+      .line(x + 1, 12, x + 12, 12, "j", 2)
+      .ellipse(x + 2, 12, 10, 5, "g")
+      .line(x + 3, 16, x + 10, 16, "j");
+  p.rect(12, 29, 22, 4, "g").rect(12, 29, 22, 1, "k").rect(12, 32, 22, 1, "j");
+  if (!back) p.ellipse(20, 28, 6, 6, "j").rect(22, 30, 2, 2, "z");
+  return p.outline("o").grid();
+}
+/** Cloth and plates hanging from the belt. */
+function skirt(back = false): Grid {
+  const p = new Pixels(34, 24);
   p.polygon(
     [
-      [3, 28],
-      [37, 28],
-      [38, 41],
-      [2, 41],
+      [2, 1],
+      [12, 1],
+      [10, 17],
+      [2, 13],
     ],
-    "z",
+    "y",
   )
-    .rect(3, 28, 34, 1, "b")
-    .line(8, 30, 6, 37, "n", 2)
-    .line(14, 31, 13, 39, "n", 2)
-    .line(26, 31, 27, 39, "n", 2)
-    .line(32, 30, 34, 37, "n", 2)
-    .rect(2, 40, 36, 1, "j");
-  if (view !== "back")
-    p.rect(17, 28, 6, 13, "y")
-      .rect(21, 28, 2, 13, "l")
-      .rect(17, 38, 6, 1, "w")
-      .ellipse(16, 22, 8, 7, "i")
-      .ellipse(18, 23, 3, 3, "r");
+    .polygon(
+      [
+        [32, 1],
+        [22, 1],
+        [24, 17],
+        [32, 13],
+      ],
+      "y",
+    )
+    .line(4, 3, 4, 12, "x")
+    .line(29, 3, 29, 12, "x")
+    .line(2, 13, 10, 17, "g")
+    .line(32, 13, 24, 17, "g");
+  p.polygon(
+    [
+      [11, 1],
+      [23, 1],
+      [24, 18],
+      [17, 22],
+      [10, 18],
+    ],
+    back ? "q" : "p",
+  )
+    .line(10, 18, 17, 22, "g")
+    .line(24, 18, 17, 22, "g")
+    .line(17, 3, 17, 18, back ? "p" : "q");
+  if (!back) p.line(13, 4, 13, 15, "r");
   return p.outline("o").grid();
 }
 function arm(): Grid {
   return (
-    new Pixels(20, 38)
-      // A bell sleeve, a gold cuff and a bare hand.
+    new Pixels(16, 42)
       .polygon(
         [
-          [6, 1],
-          [14, 1],
-          [18, 22],
-          [17, 27],
-          [3, 27],
-          [2, 22],
+          [4, 1],
+          [12, 1],
+          [12, 18],
+          [5, 18],
+        ],
+        "u",
+      )
+      .line(6, 3, 6, 15, "m")
+      .line(11, 3, 11, 16, "n")
+      // A plated bracer from elbow to wrist.
+      .polygon(
+        [
+          [3, 17],
+          [13, 17],
+          [12, 32],
+          [4, 32],
         ],
         "p",
       )
-      .polygon(
-        [
-          [12, 2],
-          [14, 2],
-          [18, 22],
-          [17, 26],
-          [13, 26],
-        ],
-        "q",
-      )
-      .rect(6, 5, 2, 12, "r")
-      .line(9, 8, 8, 22, "q")
-      .rect(3, 24, 14, 3, "g")
-      .rect(3, 24, 14, 1, "k")
-      .ellipse(5, 27, 10, 9, "s")
-      .ellipse(6, 28, 4, 3, "h")
-      .rect(7, 33, 6, 1, "t")
+      .line(11, 19, 11, 30, "q", 2)
+      .line(6, 20, 6, 29, "r")
+      .rect(3, 17, 10, 2, "g")
+      .rect(4, 30, 8, 2, "g")
+      .rect(3, 17, 10, 1, "k")
+      .ellipse(4, 32, 8, 8, "u")
+      .ellipse(5, 33, 4, 3, "m")
+      .line(6, 38, 10, 38, "n")
       .outline("o")
       .grid()
   );
 }
-/** The somersault cloud: rolling puffs, lit from above, with a wisp trailing behind. */
-function cloud(): Grid {
-  const p = new Pixels(96, 26);
-  for (const [x, y, w, h] of [
-    [5, 8, 28, 17],
-    [21, 3, 30, 22],
-    [43, 5, 30, 20],
-    [65, 9, 28, 16],
-  ])
-    p.ellipse(x, y, w, h, "b");
-  for (const [x, y, w, h] of [
-    [6, 8, 25, 12],
-    [22, 3, 27, 15],
-    [44, 5, 27, 14],
-    [66, 9, 25, 11],
-  ])
-    p.ellipse(x, y, w, h, "a");
-  for (const [x, y, w, h] of [
-    [27, 5, 13, 4],
-    [49, 7, 13, 4],
-    [10, 10, 10, 3],
-    [71, 11, 10, 3],
-  ])
-    p.ellipse(x, y, w, h, "c");
+function leg(): Grid {
   return (
-    p
-      // Curls where the puffs meet.
-      .line(21, 14, 24, 19, "b", 2)
-      .line(43, 13, 46, 19, "b", 2)
-      .line(65, 15, 68, 20, "b", 2)
+    new Pixels(18, 56)
       .polygon(
         [
-          [1, 19],
-          [9, 12],
-          [10, 21],
+          [3, 1],
+          [15, 1],
+          [14, 26],
+          [5, 26],
         ],
-        "b",
+        "y",
       )
-      .outline("j")
+      .line(12, 2, 12, 24, "x", 2)
+      .line(6, 3, 7, 22, "x")
+      // Knee guard, greave and a banded boot.
+      .ellipse(4, 23, 10, 8, "g")
+      .ellipse(6, 24, 5, 3, "k")
+      .polygon(
+        [
+          [5, 30],
+          [13, 30],
+          [12, 46],
+          [6, 46],
+        ],
+        "p",
+      )
+      .line(9, 31, 9, 45, "g")
+      .line(12, 31, 11, 45, "q")
+      .polygon(
+        [
+          [4, 45],
+          [14, 45],
+          [15, 51],
+          [3, 51],
+        ],
+        "n",
+      )
+      .rect(4, 45, 10, 2, "g")
+      .rect(3, 51, 13, 2, "o")
+      .outline("o")
       .grid()
   );
 }
+function tail(): Grid {
+  const p = new Pixels(36, 46);
+  const curve: Point[] = [
+    [35, 18],
+    [25, 25],
+    [14, 24],
+    [7, 16],
+    [8, 7],
+    [14, 3],
+  ];
+  stroke(p, curve, 4, "u");
+  stroke(p, shifted(curve.slice(0, 5), 0, -1), 1, "m");
+  return p.ellipse(11, 0, 8, 7, "n").outline("o").grid();
+}
+function staff(): Grid {
+  return new Pixels(78, 92)
+    .line(4, 87, 73, 4, "i", 3)
+    .line(5, 88, 74, 5, "l", 1)
+    .line(4, 87, 12, 77, "g", 5)
+    .line(65, 14, 73, 4, "g", 5)
+    .line(3, 86, 11, 76, "k", 1)
+    .line(64, 13, 72, 3, "k", 1)
+    .line(12, 74, 16, 77, "j", 2)
+    .line(61, 15, 65, 18, "j", 2)
+    .outline("o")
+    .grid();
+}
 
-const riding = (lift: number, reach: number, happy = false) => ({
-  duration: 220,
-  ...(happy ? { expression: "happy" as const } : {}),
-  bones: {
-    root: { y: lift },
-    body: { y: 2, angle: -5 },
-    head: { angle: 3 },
-    leftLeg: { angle: 36, y: -1 },
-    rightLeg: { angle: -36, y: -1 },
-    leftArm: { angle: 30 },
-    rightArm: { angle: reach },
-  },
-});
-const cruising = (lift: number, nod: number) => ({
-  duration: 620,
-  bones: {
-    root: { y: lift },
-    body: { y: 4 },
-    head: { angle: nod },
-    leftLeg: { angle: 78 },
-    rightLeg: { angle: -78 },
-    leftArm: { angle: -18 },
-    rightArm: { angle: 18 },
-  },
-});
-const clips: Partial<Record<"fly" | "swim", Clip>> = {
-  // Crouched on the cloud, one arm stretched ahead.
-  fly: {
-    frames: [
-      riding(-3, -78),
-      riding(-5, -92, true),
-      riding(-4, -84),
-      riding(-2, -72),
+/**
+ * In the air he is one drawing: a lunge to the right, staff levelled ahead,
+ * tail and scarf streaming behind.
+ */
+function lunge(): Grid {
+  const p = new Pixels(126, 88);
+  // Streaming behind: tail and scarf.
+  const tailCurve: Point[] = [
+    [52, 46],
+    [38, 44],
+    [24, 36],
+    [12, 34],
+    [5, 40],
+  ];
+  stroke(p, tailCurve, 4, "u");
+  stroke(p, shifted(tailCurve, 0, -1), 1, "m");
+  p.ellipse(1, 37, 8, 7, "n");
+  p.polygon(
+    [
+      [72, 20],
+      [60, 12],
+      [46, 12],
+      [36, 18],
+      [48, 17],
+      [58, 19],
+      [70, 25],
     ],
+    "a",
+  )
+    .line(48, 14, 60, 15, "c")
+    .line(40, 17, 56, 18, "b");
+  // The trailing leg, stretched out behind.
+  const backLeg: Point[] = [
+    [54, 48],
+    [40, 58],
+    [26, 62],
+  ];
+  stroke(p, backLeg, 9, "y");
+  stroke(p, shifted(backLeg, 0, 3), 2, "x");
+  p.line(36, 56, 26, 60, "p", 8)
+    .line(36, 55, 27, 58, "g", 1)
+    .ellipse(36, 54, 9, 9, "g");
+  p.polygon(
+    [
+      [28, 56],
+      [18, 58],
+      [12, 64],
+      [16, 68],
+      [28, 67],
+    ],
+    "n",
+  ).line(27, 57, 27, 66, "g", 2);
+  // The far arm, drawn back along the staff.
+  stroke(
+    p,
+    [
+      [70, 26],
+      [60, 30],
+      [52, 34],
+    ],
+    7,
+    "u",
+  );
+  p.line(60, 30, 53, 33, "p", 7).line(60, 27, 54, 30, "g", 1);
+  // The staff, levelled ahead.
+  p.line(14, 30, 122, 44, "i", 3)
+    .line(14, 32, 122, 46, "l", 1)
+    .line(110, 42, 122, 44, "g", 5)
+    .line(14, 30, 26, 32, "g", 5)
+    .line(110, 41, 121, 42, "k", 1)
+    .line(106, 40, 106, 46, "j", 2)
+    .line(29, 30, 29, 36, "j", 2);
+  p.ellipse(48, 30, 9, 9, "u").ellipse(49, 31, 4, 3, "m");
+  // Torso, leaning into the charge.
+  p.polygon(
+    [
+      [66, 20],
+      [80, 26],
+      [70, 46],
+      [52, 52],
+      [48, 42],
+      [58, 28],
+    ],
+    "p",
+  )
+    .polygon(
+      [
+        [58, 30],
+        [66, 22],
+        [70, 24],
+        [56, 44],
+        [50, 44],
+      ],
+      "q",
+    )
+    .line(72, 30, 62, 46, "r", 2)
+    .line(64, 28, 76, 33, "g")
+    .line(55, 44, 68, 48, "g", 3)
+    .line(55, 43, 68, 47, "k");
+  // Cloth flying back from the belt.
+  p.polygon(
+    [
+      [52, 46],
+      [64, 50],
+      [58, 62],
+      [48, 66],
+      [40, 60],
+    ],
+    "p",
+  )
+    .line(41, 60, 48, 65, "g")
+    .line(48, 65, 58, 62, "g")
+    .line(54, 50, 48, 61, "q");
+  // The leading leg, knee driven forward.
+  const frontLeg: Point[] = [
+    [60, 50],
+    [76, 58],
+    [70, 72],
+  ];
+  stroke(p, frontLeg, 9, "y");
+  p.line(62, 54, 74, 60, "x", 2);
+  p.line(77, 60, 72, 72, "p", 8)
+    .line(79, 61, 74, 72, "g", 1)
+    .ellipse(72, 53, 10, 10, "g")
+    .ellipse(74, 55, 5, 4, "k");
+  p.polygon(
+    [
+      [66, 70],
+      [78, 72],
+      [84, 80],
+      [80, 84],
+      [64, 80],
+    ],
+    "n",
+  ).line(66, 71, 78, 73, "g", 2);
+  // The near arm, thrusting the staff forward.
+  p.ellipse(66, 18, 16, 12, "g")
+    .ellipse(69, 19, 9, 4, "k")
+    .line(68, 27, 80, 28, "j", 2);
+  stroke(
+    p,
+    [
+      [76, 28],
+      [86, 34],
+      [94, 38],
+    ],
+    7,
+    "u",
+  );
+  p.line(84, 33, 93, 38, "p", 8)
+    .line(85, 30, 94, 35, "g", 1)
+    .line(83, 36, 91, 41, "q", 2);
+  p.ellipse(92, 35, 10, 10, "u").ellipse(94, 36, 4, 3, "m");
+  // Head, low and forward, in profile.
+  p.polygon(
+    [
+      [72, 16],
+      [70, 8],
+      [75, 10],
+      [76, 2],
+      [81, 7],
+      [85, 1],
+      [87, 7],
+      [92, 4],
+      [92, 11],
+      [96, 20],
+      [86, 26],
+      [76, 24],
+    ],
+    "u",
+  )
+    .line(77, 6, 79, 11, "m")
+    .line(84, 4, 85, 10, "m")
+    .line(73, 12, 75, 20, "n")
+    .polygon(
+      [
+        [84, 11],
+        [94, 12],
+        [99, 18],
+        [98, 23],
+        [90, 25],
+        [84, 21],
+      ],
+      "s",
+    )
+    .ellipse(92, 17, 8, 7, "h")
+    .line(84, 11, 94, 12, "g", 2)
+    .line(84, 10, 94, 11, "k")
+    .line(88, 14, 93, 15, "n")
+    .rect(91, 15, 3, 2, "z")
+    .dot(93, 16, "e")
+    .line(93, 22, 97, 22, "o")
+    .ellipse(80, 14, 5, 6, "s")
+    .dot(82, 16, "t");
+  return p.outline("o").grid();
+}
+/** A pale cloud, lit from above, tearing away behind him. */
+function cloud(): Grid {
+  const p = new Pixels(104, 26);
+  for (const [x, y, w, h] of [
+    [14, 9, 28, 16],
+    [30, 3, 32, 22],
+    [54, 6, 30, 19],
+    [74, 11, 26, 14],
+  ])
+    p.ellipse(x, y, w, h, "v");
+  for (const [x, y, w, h] of [
+    [15, 9, 25, 11],
+    [31, 3, 29, 15],
+    [55, 6, 27, 13],
+    [75, 11, 23, 9],
+  ])
+    p.ellipse(x, y, w, h, "w");
+  return p
+    .line(30, 15, 33, 20, "v", 2)
+    .line(54, 14, 57, 20, "v", 2)
+    .line(74, 16, 77, 21, "v", 2)
+    .polygon(
+      [
+        [1, 16],
+        [16, 12],
+        [18, 21],
+        [8, 19],
+      ],
+      "v",
+    )
+    .line(2, 16, 15, 13, "w")
+    .outline("d")
+    .grid();
+}
+
+const charge = (lift: number) => ({
+  duration: 200,
+  bones: { root: { y: lift } },
+});
+const glide = (lift: number) => ({
+  duration: 520,
+  bones: { root: { y: lift } },
+});
+/** Feet apart and settled, in place of the shared seat, which suits short legs only. */
+const stance = (sink: number, nod: number, asleep: boolean) => ({
+  duration: 800,
+  ...(asleep ? { expression: "closed" as const } : {}),
+  bones: {
+    body: { y: sink },
+    head: { angle: nod },
+    leftLeg: { angle: 20 },
+    rightLeg: { angle: -20 },
+    leftArm: { angle: 12 },
+    rightArm: { angle: -12 },
   },
-  // Cross-legged and unhurried.
-  swim: { frames: [cruising(-1, 0), cruising(-3, -4), cruising(-2, 3)] },
+});
+/** Long legs take a shorter swing than the shared walk gives. */
+const stride = (swing: number, lift: number) => ({
+  duration: 140,
+  bones: {
+    body: { y: lift },
+    leftLeg: { angle: swing },
+    rightLeg: { angle: swing ? -swing : 0 },
+    leftArm: { angle: swing ? -swing * 0.8 : 0 },
+    rightArm: { angle: swing * 0.8 },
+  },
+});
+/** A raised fist rather than open arms. */
+const cheer = (reach: number, lift: number) => ({
+  duration: 230,
+  expression: "happy" as const,
+  bones: {
+    root: { y: lift },
+    rightArm: { angle: reach },
+    leftArm: { angle: 14 },
+    head: { angle: -3 },
+  },
+});
+const clips: Partial<Record<Pose, Clip>> = {
+  fly: { frames: [charge(-2), charge(-4), charge(-3), charge(-1)] },
+  swim: { frames: [glide(-1), glide(-3), glide(-2)] },
+  sit: { frames: [stance(3, 0, false), stance(4, 0, false)] },
+  sleep: { frames: [stance(4, 12, true), stance(5, 12, true)] },
+  walk: {
+    frames: [stride(11, -1), stride(0, 0), stride(-11, -1), stride(0, 0)],
+  },
+  happy: { frames: [cheer(-150, -1), cheer(-162, -2)] },
 };
 
 export function wukong(): PixelCharacter {
+  const ground = { poses: GROUNDED };
   const parts: Part[] = [
-    part("tail", "body", 2, 72, tail()),
-    part("staff", "body", 2, 44, staff()),
-    part("left-leg", "leftLeg", 33, 94, leg()),
-    part("right-leg", "rightLeg", 49, 94, leg()),
-    part("torso", "body", 28, 60, torso("front"), {
-      views: { back: torso("back") },
+    part("tail", "body", 6, 54, tail(), ground),
+    part("staff", "body", 10, 18, staff(), ground),
+    part("left-leg", "leftLeg", 32, 68, leg(), ground),
+    part("right-leg", "rightLeg", 46, 68, leg(), ground),
+    part("skirt", "body", 31, 62, skirt(), {
+      ...ground,
+      views: { back: skirt(true) },
     }),
-    part("left-arm", "leftArm", 19, 62, arm()),
-    part("right-arm", "rightArm", 57, 62, arm()),
-    part("head", "head", 23, 18, head("front"), {
-      views: { right: head("right"), back: head("back") },
+    part("torso", "body", 25, 32, torso(), {
+      ...ground,
+      views: { back: torso(true) },
     }),
-    part("expression", "head", 23, 18, face("normal"), {
-      views: { back: [], right: face("normal", true) },
+    part("left-arm", "leftArm", 23, 38, arm(), ground),
+    part("right-arm", "rightArm", 57, 38, arm(), ground),
+    part("head", "head", 33, 6, head(), {
+      ...ground,
+      views: { back: head(true) },
+    }),
+    part("expression", "head", 33, 6, face("normal"), {
+      ...ground,
+      views: { back: [] },
       expressions: {
         blink: face("blink"),
         closed: face("closed"),
         happy: face("happy"),
       },
-      profileExpressions: {
-        blink: face("blink", true),
-        closed: face("closed", true),
-        happy: face("happy", true),
-      },
     }),
-    part("circlet", "head", 16, -6, circlet("front"), {
-      views: { right: circlet("right"), back: circlet("back") },
-    }),
-    part("cloud", "root", 0, 106, cloud(), { poses: CLOUD_POSES }),
+    part("cloud", "root", -4, 102, cloud(), { poses: AIRBORNE }),
+    part("lunge", "body", -15, 26, lunge(), { poses: AIRBORNE }),
   ];
   const character: PixelCharacter = {
     id: "wukong",
@@ -526,8 +733,17 @@ export function wukong(): PixelCharacter {
     parts,
     clips,
     detail: 2,
+    // A tall build: small head, long limbs.
+    rig: {
+      body: { x: 48, y: 64 },
+      head: { x: 48, y: 36 },
+      leftArm: { x: 31, y: 41 },
+      rightArm: { x: 65, y: 41 },
+      leftLeg: { x: 41, y: 70 },
+      rightLeg: { x: 55, y: 70 },
+    },
     traits: { movement: "fly" },
-    lines: { pet: "Ha! Do that again.", play: "Catch me if you can!" },
+    lines: { pet: "Hm. Again.", play: "Try to keep up." },
     author: "LittleLife",
     license: "MIT",
   };

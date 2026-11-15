@@ -231,6 +231,14 @@ export function parsePack(input: unknown): PixelCharacter {
     ),
   };
   if (k === 2) character.detail = 2;
+  const rig = table(raw.rig, BONES, "rig", (joint, what) => {
+    const j = object(joint, what);
+    return {
+      x: amount(j.x, `${what} x`, WIDTH * k),
+      y: amount(j.y, `${what} y`, HEIGHT * k),
+    };
+  });
+  if (rig) character.rig = rig;
   const clips = table(raw.clips, POSES, "clips", clip);
   if (clips) character.clips = clips;
   if (raw.traits !== undefined) {

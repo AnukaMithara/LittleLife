@@ -8,7 +8,7 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 
 ## What works
 
-- Five original pixel characters with shared animations, including Wukong, drawn at double pixel detail, who rides a golden cloud whenever he flies.
+- Five original pixel characters, including Wukong: an armoured warrior at double pixel detail with adult proportions, who lunges through the air on a cloud, staff levelled.
 - **Bring your own character.** A character is one data-only JSON pack: add packs, share any character as a pack, and edit it. See [character packs](docs/CHARACTER-PACKS.md).
 - A character workshop with palette controls, four directions, and sitting/waving pose previews.
 - Pet, play, rest, and wake interactions.
@@ -114,7 +114,7 @@ The decision loop runs every six seconds, with a one-second needs tick. Pixel an
 
 ## Pixel characters
 
-Click **Characters ↗** to choose a look and preview its poses. The default Moss, silver-haired Ember, armored Aster, crowned Surya and cloud-riding Wukong use the same engine and action set. Wukong has his own flying and cruising animations and prefers to fly. **Add a character…** in the same panel brings in a [character pack](docs/CHARACTER-PACKS.md). No character image files are loaded. Your pet's bond and energy stay intact when changing appearance.
+Click **Characters ↗** to choose a look and preview its poses. The default Moss, silver-haired Ember, armored Aster, crowned Surya and the warrior Wukong use the same engine and action set. Wukong has his own skeleton, walk and flying lunge, and prefers to fly. **Add a character…** in the same panel brings in a [character pack](docs/CHARACTER-PACKS.md). No character image files are loaded. Your pet's bond and energy stay intact when changing appearance.
 
 See [the pixel engine guide](docs/PIXEL-ENGINE.md) for authoring new characters and the generated pose preview.
 

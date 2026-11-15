@@ -49,8 +49,12 @@ describe("character packs", () => {
       compose(without, "walk", "right", 0),
     );
     // His own flying clip, not the shared one.
-    expect(compose(wukong, "fly", "right", 0)).not.toEqual(
-      compose({ ...wukong, clips: undefined }, "fly", "right", 0),
+    expect(compose(wukong, "fly", "right", 250)).not.toEqual(
+      compose({ ...wukong, clips: undefined }, "fly", "right", 250),
+    );
+    // And a skeleton of his own: the shared one would put his joints elsewhere.
+    expect(compose(wukong, "wave", "front", 0)).not.toEqual(
+      compose({ ...wukong, rig: undefined }, "wave", "front", 0),
     );
   });
   it("keeps only known fields, so a pack cannot smuggle anything else in", () => {
@@ -67,6 +71,7 @@ describe("character packs", () => {
       "name",
       "palette",
       "parts",
+      "rig",
       "title",
       "traits",
     ]);

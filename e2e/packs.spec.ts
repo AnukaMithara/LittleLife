@@ -27,7 +27,7 @@ test("a shared character can be edited, added, kept across reloads and removed",
   await select.selectOption("wukong");
   await expect(page.locator("#pet-name")).toHaveText("Wukong");
   await page.getByRole("button", { name: "Pet", exact: true }).click();
-  await expect(page.locator("#speech")).toHaveText("Ha! Do that again.");
+  await expect(page.locator("#speech")).toHaveText("Hm. Again.");
   await expect(page.getByRole("button", { name: "Remove" })).toBeHidden();
 
   const pack = await exported(page);

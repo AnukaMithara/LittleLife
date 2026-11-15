@@ -36,6 +36,20 @@ Feet rest at about `y: 61`. Parts are drawn in the order listed, later ones on t
 
 Set `"detail": 2` to draw with pixels half the size: a 128 × 160 canvas shown in the same space on screen, which is enough for faces, folds, trim and shading. Everything you draw is then in a 96 × 128 authoring space, offset 16 across and 24 down: part positions and grids double, pivots double (`body` is at 48, 86 and feet rest near `y: 122`), and grids may be up to 128 × 160. Clips are unchanged, because their offsets are still counted in ordinary pixels. Shared effects such as the heart are drawn as 2 × 2 blocks. Wukong is drawn this way; the other built-in characters use ordinary detail.
 
+### A skeleton of its own
+
+The shared pivots suit a big head on a small body. A character built differently can move them:
+
+```jsonc
+"rig": { "body": { "x": 48, "y": 64 }, "head": { "x": 48, "y": 36 }, "leftArm": { "x": 31, "y": 41 } }
+```
+
+Pivots are in the same units as part positions, and any bone left out keeps its shared place. The shared clips were tuned for short limbs, so a tall character usually wants its own `walk` and `sit` as well: the same swing covers far more ground on a long leg.
+
+### One drawing for a whole pose
+
+A part with `poses` can be an entire figure. Wukong's standing parts are listed for every pose except `fly` and `swim`, and in those two a single hand-drawn lunge takes their place. That is how a character gets a pose the skeleton could never bend into.
+
 ## Format
 
 ```jsonc
@@ -47,6 +61,7 @@ Set `"detail": 2` to draw with pixels half the size: a 128 × 160 canvas shown i
   "title": "POCKET SPROUT",         // 1–28 characters
   "author": "…", "license": "…",    // optional, up to 80 characters each
   "detail": 2,                      // optional: 1 (default) or 2 for double detail
+  "rig": { "head": { "x": 48, "y": 36 } }, // optional: this character's own joint positions
   "palette": { "o": "#2b2a3a" },    // 1–40 single-character keys → #rrggbb
   "parts": [ /* 1–40 parts */ ],
   "clips": { /* optional */ },
@@ -115,7 +130,7 @@ The twelve poses are `idle`, `walk`, `sleep`, `jump`, `curious`, `happy`, `sit`,
 | `src/pixel/pack.ts` | The format: reading untrusted packs, writing packs, limits |
 | `src/pixel/registry.ts` | Built-in and imported characters as one list; saving imports |
 | `src/pixel/characters.ts` | The characters that ship with the app |
-| `src/pixel/wukong.ts` | A built-in that uses every pack feature: own clips, a pose-only cloud, movement and lines |
+| `src/pixel/wukong.ts` | A built-in that uses every pack feature: double detail, its own skeleton and clips, pose-only art, movement and lines |
 | `src/pixel/engine.ts` | Rig, shared clips, composition |
 
 Built-in characters go through the same door as imported ones: a test writes each to a pack and reads it back, and they must come out identical. Anything a built-in can do, a pack can do.

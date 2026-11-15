@@ -62,6 +62,11 @@ export interface PixelCharacter {
    * same space. Part positions and grids are then in a 96 × 128 authoring space.
    */
   detail?: 1 | 2;
+  /**
+   * Where this character's joints are, for builds the shared skeleton does not fit,
+   * such as long limbs and a small head. In the same units as part positions.
+   */
+  rig?: Partial<Record<Bone, { x: number; y: number }>>;
 }
 /** How many character pixels make one ordinary logical pixel. */
 export const detailOf = (character: Pick<PixelCharacter, "detail">) =>
@@ -422,10 +427,17 @@ function boneMatrix(
   frame: Frame,
   cache: Partial<Record<Bone, Matrix>>,
   k: number,
+  joints: PixelCharacter["rig"],
 ): Matrix {
   if (cache[bone]) return cache[bone]!;
-  // Pivots and pose offsets are written for ordinary pixels and scale with the detail.
-  const rig = { ...RIG[bone], x: RIG[bone].x * k, y: RIG[bone].y * k },
+  // Shared pivots and pose offsets are written for ordinary pixels and scale with
+  // the detail; a character's own pivots are already in its own units.
+  const own = joints?.[bone];
+  const rig = {
+      ...RIG[bone],
+      x: own ? own.x : RIG[bone].x * k,
+      y: own ? own.y : RIG[bone].y * k,
+    },
     move = frame.bones?.[bone] ?? {},
     t = { angle: move.angle, x: (move.x ?? 0) * k, y: (move.y ?? 0) * k };
   const angle = ((t.angle ?? 0) * Math.PI) / 180;
@@ -440,7 +452,7 @@ function boneMatrix(
     rig.y + (t.y ?? 0) - s * rig.x - c * rig.y,
   ];
   const result = multiply(
-    rig.parent ? boneMatrix(rig.parent, frame, cache, k) : IDENTITY,
+    rig.parent ? boneMatrix(rig.parent, frame, cache, k, joints) : IDENTITY,
     local,
   );
   cache[bone] = result;
@@ -518,6 +530,7 @@ export function compose(
       frame,
       cache,
       k,
+      character.rig,
     );
     const width = grid[0].length,
       height = grid.length;
