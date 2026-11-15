@@ -489,6 +489,8 @@ function human(
           sit: "root",
           jump: "body",
           happy: "body",
+          fly: "body",
+          swim: "root",
         },
       }),
     );

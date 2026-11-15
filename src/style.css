@@ -788,3 +788,50 @@ h2 {
   padding: 8px;
   font-size: 11px;
 }
+
+/* Root backgrounds paint behind transparent body elements in WebKit. */
+html.native,
+html.companion-mode,
+html.companion-mode body {
+  background: transparent;
+}
+.compact {
+  overflow: hidden;
+}
+.compact .layout {
+  width: 100%;
+  height: 100vh;
+}
+.compact .companion {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+  border-radius: 0;
+}
+.compact .stage {
+  height: 100vh;
+}
+.compact .pet-position {
+  width: 128px;
+  top: 0;
+  transition: none;
+}
+.compact .compact-controls,
+.compact .speech,
+.compact .toast {
+  display: none;
+}
+.compact .pet-button {
+  cursor: grab;
+  touch-action: none;
+}
+.compact .pet-button:active {
+  cursor: grabbing;
+}
+.desktop-settings select {
+  width: 100%;
+  margin: 8px 0 14px;
+  padding: 8px;
+}

@@ -33,19 +33,26 @@ On Windows, prefer the setup EXE. It can install WebView2 when needed; that step
 Use the LittleLife tray icon on Windows or menu-bar icon on macOS:
 
 - **Open LittleLife** opens the full corner and restores mouse interaction.
-- **Compact companion** shows the smaller character window.
+- **Compact companion** shows only the character, without a panel, speech bubble or button bar. New installations start in this mode.
+- **Walk / Fly / Swim around the desktop** selects a movement style and enters companion mode. **Pause / resume roaming** controls desktop movement.
 - **Interact / restore clicks** disables click-through and brings the current view forward.
 - **Hide companion** keeps the app in the tray. Hidden companions stop their frontend simulation and do not start Jev requests.
 - **Reset position to primary display** rescues a companion after a monitor is removed.
 - **Quit LittleLife** exits the process.
 
-The in-app × buttons still mean **Quit**, so they exit rather than merely hiding. OS close requests hide to the tray when one is available. Opening a second instance restores the existing one instead of creating another companion. On macOS, reopening from the Dock also restores interaction.
+Double-click/right-click the character or press Escape to open the full controls; drag the character to reposition it. The expanded in-app × button means **Quit**, so they exit rather than merely hiding. OS close requests hide to the tray when one is available. Opening a second instance restores the existing one instead of creating another companion. On macOS, reopening from the Dock also restores interaction.
 
-Under **Little settings → Desktop companion**, you can change always-on-top, hide, reset placement, or choose **Compact and let clicks pass through**. Click-through covers the **entire compact window**, including the character; this phase does not perform pixel-level hit testing. Return through the tray's Interact command to pet or drag again. If the tray cannot be created, hiding and click-through are disabled. Click-through is never saved or enabled on startup.
+Under **Little settings → Desktop companion**, you can select Walking/Flying/Swimming, enable or disable roaming, change always-on-top, hide, reset placement, or choose **Compact and let clicks pass through**. Click-through covers the **entire compact window**, including the character; this phase does not perform pixel-level hit testing. Return through the tray's Interact command to pet or drag again. If the tray cannot be created, hiding and click-through are disabled. Click-through is never saved or enabled on startup.
+
+## Desktop roaming
+
+In native companion mode, the app moves its 160 × 180 logical-pixel transparent window at up to eight small steps per second while the behavior engine is exploring. Walking travels horizontally, flying travels in two dimensions, and swimming follows a gentle wave. Flying and swimming have separate pixel pose clips. Directions turn at the current display’s usable edges, including negative-coordinate and scaled displays. Drag to another monitor to move the roaming area.
+
+Movement stops for pause, rest, quiet mode, reduced motion, hidden windows, pose previews and pointer interaction. Expanded controls and browser previews do not move a native window. There are no always-on-top fullscreen overlays, global cursor observation, screen inspection, water detection, or simulated keyboard/mouse input. Swimming is a visual movement style over the desktop. Transparent pixels within the small window still receive clicks unless explicit whole-window click-through is enabled.
 
 ## Position persistence
 
-`desktop-v1.json` in the OS application configuration directory stores the selected view mode, always-on-top preference, monitor identity/origin, and normalized position within its work area. Moves are debounced before saving; quit flushes the newest state. The file contains no credentials and is separate from the pet's browser/WebView local storage.
+`desktop-v1.json` in the OS application configuration directory stores the selected view mode, roaming enablement/movement style, always-on-top preference, monitor identity/origin, and normalized position within its work area. Moves are debounced before saving; quit flushes the newest state. The file contains no credentials and is separate from the pet's browser/WebView local storage.
 
 Saved anchors adapt to resolution and display-scale changes. Missing monitors fall back to the primary display. Window dimensions are limited to the available work area, and placement is repaired on startup, mode changes, display-scale events and tray recovery. Monitor disconnection while idle may still require **Open LittleLife** or **Reset position** from the tray. There is no global cursor polling or screen capture.
 

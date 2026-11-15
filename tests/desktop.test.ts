@@ -21,6 +21,8 @@ import {
 } from "../src/desktop";
 
 const initial: DesktopState = {
+  roaming: true,
+  movement: "walk",
   compact: true,
   clickThrough: false,
   visible: false,

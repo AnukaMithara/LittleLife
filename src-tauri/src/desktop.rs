@@ -1,6 +1,6 @@
 use crate::placement::{self, Area, Preferences};
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::Mutex, time::Duration};
+use std::{path::PathBuf, sync::Mutex, time::{Duration, Instant}};
 use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Emitter, Manager, WebviewWindow, WindowEvent};
 
 #[derive(Default)]
@@ -15,26 +15,30 @@ struct Session {
     path: Option<PathBuf>,
     revision: u64,
     saving: bool,
+    last_step: Instant,
+    heading: (f64, f64),
+    phase: f64,
 }
 impl Default for Session {
     fn default() -> Self { Self { prefs: Preferences::default(), click_through: false, visible: false,
-        tray_available: false, storage_available: true, path: None, revision: 0, saving: false } }
+        tray_available: false, storage_available: true, path: None, revision: 0, saving: false, last_step: Instant::now(), heading: (1.0, 1.0), phase: 0.0 } }
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DesktopState {
     compact: bool, click_through: bool, visible: bool, always_on_top: bool,
     tray_available: bool, storage_available: bool,
+    roaming: bool, movement: crate::motion::Movement,
 }
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Action { Ready, Expand, Compact, Hide, Interact, ClickThrough, AlwaysOnTop, Reset, Quit }
+pub enum Action { Ready, Expand, Compact, Hide, Interact, ClickThrough, AlwaysOnTop, Reset, Roaming, Quit }
 
 pub fn state(app: &AppHandle) -> DesktopState {
     let desktop = app.state::<Desktop>();
     let s = desktop.inner.lock().unwrap();
     DesktopState { compact: s.prefs.compact, click_through: s.click_through, visible: s.visible,
-        always_on_top: s.prefs.always_on_top, tray_available: s.tray_available, storage_available: s.storage_available }
+        always_on_top: s.prefs.always_on_top, tray_available: s.tray_available, storage_available: s.storage_available, roaming: s.prefs.roaming, movement: s.prefs.movement }
 }
 fn notify(app: &AppHandle) { let _ = app.emit_to("main", "desktop-state", state(app)); }
 
@@ -112,6 +116,7 @@ pub fn perform(app: &AppHandle, action: Action, value: Option<bool>) -> Result<D
         Action::Ready | Action::Interact => { click_through = false; visible = true; },
         Action::Hide => { click_through = false; visible = false; },
         Action::ClickThrough => { click_through = value.ok_or("invalid_action")?; if click_through { prefs.compact = true; visible = true; } },
+        Action::Roaming => prefs.roaming = value.ok_or("invalid_action")?,
         Action::AlwaysOnTop => prefs.always_on_top = value.ok_or("invalid_action")?,
         Action::Reset => { prefs.placement = None; click_through = false; visible = true; },
         Action::Quit => unreachable!(),
@@ -138,6 +143,39 @@ pub fn perform(app: &AppHandle, action: Action, value: Option<bool>) -> Result<D
 pub fn desktop_status(app: AppHandle) -> DesktopState { state(&app) }
 #[tauri::command]
 pub fn desktop_action(app: AppHandle, action: Action, value: Option<bool>) -> Result<DesktopState, String> { perform(&app, action, value) }
+
+#[tauri::command]
+pub fn desktop_movement(app: AppHandle, movement: crate::motion::Movement) -> DesktopState {
+    { let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
+      s.prefs.movement = movement; s.phase = 0.0; s.last_step = Instant::now(); }
+    queue_save(&app); notify(&app); state(&app)
+}
+
+/// One bounded native step. The frontend requests steps only while actively roaming.
+#[tauri::command]
+pub fn desktop_step(app: AppHandle) -> Result<i8, String> {
+    let window = app.get_webview_window("main").ok_or("window")?;
+    let (mode, heading, phase, dt) = {
+        let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
+        if !s.visible || !s.prefs.compact || !s.prefs.roaming { return Ok(0); }
+        let elapsed = s.last_step.elapsed().as_secs_f64();
+        if elapsed < 0.1 { return Ok(0); }
+        s.last_step = Instant::now();
+        (s.prefs.movement, s.heading, s.phase, if elapsed > 0.5 { 0.125 } else { elapsed })
+    };
+    if !window.is_visible().unwrap_or(false) { return Ok(0); }
+    let monitor = window.current_monitor().map_err(|_| "monitor")?.ok_or("monitor")?;
+    let work = monitor.work_area();
+    let area = Area { name: monitor.name().cloned(), x: work.position.x, y: work.position.y,
+        width: work.size.width, height: work.size.height, scale: monitor.scale_factor(), primary: false };
+    let position = window.outer_position().map_err(|_| "window")?;
+    let size = window.outer_size().map_err(|_| "window")?;
+    let step = crate::motion::advance(mode, &area, (position.x, position.y), (size.width, size.height), heading, phase, dt).ok_or("monitor")?;
+    window.set_position(tauri::PhysicalPosition::new(step.x, step.y)).map_err(|_| "window")?;
+    { let desktop = app.state::<Desktop>(); let mut s = desktop.inner.lock().unwrap();
+      s.heading = (step.dx, step.dy); s.phase = step.phase; }
+    Ok(if step.dx < 0.0 { -1 } else { 1 })
+}
 
 pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let window = app.get_webview_window("main").ok_or("Missing companion window")?;
@@ -178,11 +216,25 @@ fn create_tray(app: &AppHandle) -> tauri::Result<bool> {
         let interact = MenuItem::with_id(app, "interact", "Interact / restore clicks", true, None::<&str>)?;
         let hide = MenuItem::with_id(app, "hide", "Hide companion", true, None::<&str>)?;
         let reset = MenuItem::with_id(app, "reset", "Reset position to primary display", true, None::<&str>)?;
+        let walk = MenuItem::with_id(app, "walk", "Walk around the desktop", true, None::<&str>)?;
+        let fly = MenuItem::with_id(app, "fly", "Fly around the desktop", true, None::<&str>)?;
+        let swim = MenuItem::with_id(app, "swim", "Swim around the desktop", true, None::<&str>)?;
+        let roam = MenuItem::with_id(app, "roam", "Pause / resume roaming", true, None::<&str>)?;
         let quit = MenuItem::with_id(app, "quit", "Quit LittleLife", true, None::<&str>)?;
-        let menu = Menu::with_items(app, &[&show, &compact, &interact, &hide, &reset, &quit])?;
+        let menu = Menu::with_items(app, &[&show, &compact, &walk, &fly, &swim, &roam, &interact, &hide, &reset, &quit])?;
         let tray = TrayIconBuilder::with_id("littlelife").icon(icon).tooltip("LittleLife · restore clicks from this menu")
             .menu(&menu).show_menu_on_left_click(true)
             .on_menu_event(|app, event| {
+                match event.id.as_ref() {
+                    "walk" | "fly" | "swim" => {
+                        let mode = match event.id.as_ref() { "fly" => crate::motion::Movement::Fly, "swim" => crate::motion::Movement::Swim, _ => crate::motion::Movement::Walk };
+                        let _ = desktop_movement(app.clone(), mode);
+                        let _ = perform(app, Action::Roaming, Some(true));
+                        let _ = perform(app, Action::Compact, None); return;
+                    },
+                    "roam" => { let _ = perform(app, Action::Roaming, Some(!state(app).roaming)); return; },
+                    _ => (),
+                }
                 let action = match event.id.as_ref() { "show" => Action::Expand, "compact" => Action::Compact,
                     "interact" => Action::Interact, "hide" => Action::Hide, "reset" => Action::Reset, "quit" => Action::Quit, _ => return };
                 if perform(app, action, None).is_err() {

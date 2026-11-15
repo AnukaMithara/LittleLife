@@ -16,11 +16,13 @@ pub struct Preferences {
     pub compact: bool,
     pub always_on_top: bool,
     pub placement: Option<Placement>,
+    pub roaming: bool,
+    pub movement: crate::motion::Movement,
 }
 
 impl Default for Preferences {
     fn default() -> Self {
-        Self { version: 1, compact: false, always_on_top: true, placement: None }
+        Self { version: 1, compact: true, always_on_top: true, placement: None, roaming: true, movement: Default::default() }
     }
 }
 
@@ -62,7 +64,7 @@ pub fn layout(prefs: &Preferences, areas: &[Area]) -> Option<Layout> {
             })
     });
     let area = matching.or_else(|| usable.iter().copied().find(|a| a.primary)).or_else(|| usable.first().copied())?;
-    let (desired_width, desired_height) = if prefs.compact { (260.0_f64, 300.0_f64) } else { (440.0_f64, 650.0_f64) };
+    let (desired_width, desired_height) = if prefs.compact { (160.0_f64, 180.0_f64) } else { (440.0_f64, 650.0_f64) };
     let width = desired_width.min(f64::from(area.width) / area.scale);
     let height = desired_height.min(f64::from(area.height) / area.scale);
     let ax = saved.map(|p| anchor(p.anchor_x)).unwrap_or(0.5);
@@ -89,7 +91,7 @@ mod tests {
     fn area() -> Area { Area { name: Some("primary".into()), x: 0, y: 0, width: 1920, height: 1040, scale: 1.0, primary: true } }
     #[test]
     fn recovers_corrupt_or_future_preferences() {
-        for raw in ["{", "null", "{\"version\":9}"] { assert!(decode(raw).always_on_top); assert!(!decode(raw).compact); }
+        for raw in ["{", "null", "{\"version\":9}"] { assert!(decode(raw).always_on_top); assert!(decode(raw).compact); }
     }
     #[test]
     fn restores_edges_after_scaling_and_mode_changes() {
@@ -97,21 +99,21 @@ mod tests {
         let p = capture(&a, 1480, 390, 440, 650);
         let prefs = Preferences { placement: Some(p), compact: true, ..Default::default() };
         let result = layout(&prefs, &[area()]).unwrap();
-        assert_eq!((result.x, result.y), (1660, 740));
+        assert_eq!((result.x, result.y), (1760, 860));
         let scaled = Area { scale: 2.0, width: 2560, height: 1440, ..area() };
         let r = layout(&prefs, &[scaled]).unwrap();
-        assert_eq!((r.x, r.y), (2040, 840));
+        assert_eq!((r.x, r.y), (2240, 1080));
     }
     #[test]
     fn supports_negative_coordinates_and_removed_monitors() {
         let left = Area { name: Some("left".into()), x: -1920, primary: false, ..area() };
-        let prefs = Preferences { placement: Some(capture(&left, -1920, 0, 440, 650)), ..Default::default() };
+        let prefs = Preferences { placement: Some(capture(&left, -1920, 0, 440, 650)), compact: false, ..Default::default() };
         assert_eq!(layout(&prefs, &[area(), left]).unwrap().x, -1920);
         assert_eq!(layout(&prefs, &[area()]).unwrap().x, 0);
     }
     #[test]
     fn fits_small_work_areas_and_clamps_invalid_anchors() {
-        let prefs = Preferences { placement: Some(Placement { monitor: None, monitor_x: 0, monitor_y: 0, anchor_x: f64::NAN, anchor_y: 99.0 }), ..Default::default() };
+        let prefs = Preferences { placement: Some(Placement { monitor: None, monitor_x: 0, monitor_y: 0, anchor_x: f64::NAN, anchor_y: 99.0 }), compact: false, ..Default::default() };
         let a = Area { width: 320, height: 400, scale: 1.5, ..area() };
         let r = layout(&prefs, &[a]).unwrap();
         assert!(r.physical_width <= 320 && r.physical_height <= 400);

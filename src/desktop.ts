@@ -3,7 +3,10 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export const native = isTauri();
+export type Movement = "walk" | "fly" | "swim";
 export interface DesktopState {
+  roaming: boolean;
+  movement: Movement;
   compact: boolean;
   clickThrough: boolean;
   visible: boolean;
@@ -19,6 +22,7 @@ export type DesktopAction =
   | "interact"
   | "click_through"
   | "always_on_top"
+  | "roaming"
   | "reset"
   | "quit";
 export async function desktopAction(
@@ -62,4 +66,11 @@ export function desktopError(error: unknown): string {
   if (error === "monitor")
     return "Display information is unavailable. Try Reset position from the tray.";
   return "That desktop action did not work. Use Open LittleLife or Interact in the tray menu to recover.";
+}
+
+export function desktopStep(): Promise<number> {
+  return invoke("desktop_step");
+}
+export function desktopMovement(movement: Movement): Promise<DesktopState> {
+  return invoke("desktop_movement", { movement });
 }

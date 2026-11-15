@@ -10,9 +10,7 @@ test("restores compact mode, synchronizes tray recovery and exposes desktop cont
   await installNativeMock(page, { trayAvailable: true, compact: true });
   await page.goto("/");
   await expect(page.locator("body")).toHaveClass(/compact/);
-  await page
-    .getByRole("button", { name: "Open little corner", exact: false })
-    .click();
+  await page.getByRole("button", { name: "Pet Moss", exact: true }).dblclick();
   await expect(page.locator("body")).not.toHaveClass(/compact/);
   await page.getByRole("button", { name: "Little settings" }).click();
   await page.getByLabel("Keep above other windows").uncheck();
