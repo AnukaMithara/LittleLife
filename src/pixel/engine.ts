@@ -12,6 +12,8 @@ export const POSES = [
   "wave",
   "fly",
   "swim",
+  "dance",
+  "angry",
 ] as const;
 export const FACINGS = ["front", "right", "back", "left"] as const;
 export type Pose = (typeof POSES)[number];
@@ -20,7 +22,15 @@ export type Expression = "normal" | "blink" | "closed" | "happy";
 export type Grid = readonly string[];
 export type Palette = Record<string, string>;
 export type Bone =
-  "root" | "body" | "head" | "leftArm" | "rightArm" | "leftLeg" | "rightLeg";
+  | "root"
+  | "body"
+  | "head"
+  | "leftArm"
+  | "rightArm"
+  | "leftLeg"
+  | "rightLeg"
+  /** Something held: it turns about its own middle, wherever the hands are. */
+  | "prop";
 export interface Transform {
   x?: number;
   y?: number;
@@ -33,6 +43,8 @@ export interface Part {
   y: number;
   pixels: Grid;
   attachments?: Partial<Record<Pose, Bone>>;
+  /** Drawn only in these poses, such as a cloud that appears for flying. */
+  poses?: readonly Pose[];
   views?: Partial<Record<"right" | "back", Grid>>;
   expressions?: Partial<Record<Expression, Grid>>;
   profileExpressions?: Partial<Record<Expression, Grid>>;
@@ -43,7 +55,41 @@ export interface PixelCharacter {
   title: string;
   palette: Palette;
   parts: readonly Part[];
+  /** This character's own version of a pose, replacing the shared clip. */
+  clips?: Partial<Record<Pose, Clip>>;
+  traits?: {
+    /** How it likes to get around the desktop; chosen when the character is picked. */
+    movement?: "walk" | "fly" | "swim";
+  };
+  /** What it says when petted or played with. */
+  lines?: { pet?: string; play?: string };
+  author?: string;
+  license?: string;
+  /**
+   * 2 draws the character with pixels half the size: twice the resolution in the
+   * same space. Part positions and grids are then in a 96 × 128 authoring space.
+   */
+  detail?: 1 | 2;
+  /**
+   * Where this character's joints are, for builds the shared skeleton does not fit,
+   * such as long limbs and a small head. In the same units as part positions.
+   */
+  rig?: Partial<Record<Bone, { x: number; y: number }>>;
 }
+/** How many character pixels make one ordinary logical pixel. */
+export const detailOf = (character: Pick<PixelCharacter, "detail">) =>
+  character.detail === 2 ? 2 : 1;
+export const BONES = [
+  "root",
+  "body",
+  "head",
+  "leftArm",
+  "rightArm",
+  "leftLeg",
+  "rightLeg",
+  "prop",
+] as const;
+export const EXPRESSIONS = ["normal", "blink", "closed", "happy"] as const;
 export interface Frame {
   duration: number;
   bones?: Partial<Record<Bone, Transform>>;
@@ -53,6 +99,96 @@ export interface Clip {
   frames: readonly Frame[];
 }
 export const CLIPS: Record<Pose, Clip> = {
+  dance: {
+    frames: [
+      {
+        duration: 230,
+        expression: "happy",
+        bones: {
+          root: { y: -2 },
+          body: { angle: -3 },
+          head: { angle: 6 },
+          leftArm: { angle: 145 },
+          rightArm: { angle: -45 },
+          leftLeg: { angle: 14 },
+        },
+      },
+      {
+        duration: 230,
+        bones: {
+          body: { y: 1 },
+          leftArm: { angle: 70 },
+          rightArm: { angle: -70 },
+        },
+      },
+      {
+        duration: 230,
+        expression: "happy",
+        bones: {
+          root: { y: -2 },
+          body: { angle: 3 },
+          head: { angle: -6 },
+          leftArm: { angle: 45 },
+          rightArm: { angle: -145 },
+          rightLeg: { angle: -14 },
+        },
+      },
+      {
+        duration: 230,
+        bones: {
+          body: { y: 1 },
+          leftArm: { angle: 70 },
+          rightArm: { angle: -70 },
+        },
+      },
+    ],
+  },
+  angry: {
+    frames: [
+      {
+        duration: 160,
+        bones: {
+          root: { x: -1 },
+          body: { y: 1 },
+          head: { y: 1, angle: 5 },
+          leftArm: { angle: 38 },
+          rightArm: { angle: -38 },
+          leftLeg: { angle: 24, y: -2 },
+        },
+      },
+      {
+        duration: 160,
+        bones: {
+          root: { x: 1 },
+          body: { y: 2 },
+          head: { y: 2, angle: 5 },
+          leftArm: { angle: 44 },
+          rightArm: { angle: -44 },
+        },
+      },
+      {
+        duration: 160,
+        bones: {
+          root: { x: -1 },
+          body: { y: 1 },
+          head: { y: 1, angle: -5 },
+          leftArm: { angle: 38 },
+          rightArm: { angle: -38 },
+          rightLeg: { angle: -24, y: -2 },
+        },
+      },
+      {
+        duration: 160,
+        bones: {
+          root: { x: 1 },
+          body: { y: 2 },
+          head: { y: 2, angle: -5 },
+          leftArm: { angle: 44 },
+          rightArm: { angle: -44 },
+        },
+      },
+    ],
+  },
   fly: {
     frames: [
       {
@@ -282,6 +418,7 @@ const RIG: Record<Bone, { parent?: Bone; x: number; y: number }> = {
   rightArm: { parent: "body", x: 33, y: 33 },
   leftLeg: { parent: "root", x: 20, y: 48 },
   rightLeg: { parent: "root", x: 28, y: 48 },
+  prop: { parent: "body", x: 24, y: 40 },
 };
 type Matrix = [number, number, number, number, number, number];
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
@@ -299,10 +436,20 @@ function boneMatrix(
   bone: Bone,
   frame: Frame,
   cache: Partial<Record<Bone, Matrix>>,
+  k: number,
+  joints: PixelCharacter["rig"],
 ): Matrix {
   if (cache[bone]) return cache[bone]!;
-  const rig = RIG[bone],
-    t = frame.bones?.[bone] ?? {};
+  // Shared pivots and pose offsets are written for ordinary pixels and scale with
+  // the detail; a character's own pivots are already in its own units.
+  const own = joints?.[bone];
+  const rig = {
+      ...RIG[bone],
+      x: own ? own.x : RIG[bone].x * k,
+      y: own ? own.y : RIG[bone].y * k,
+    },
+    move = frame.bones?.[bone] ?? {},
+    t = { angle: move.angle, x: (move.x ?? 0) * k, y: (move.y ?? 0) * k };
   const angle = ((t.angle ?? 0) * Math.PI) / 180;
   const c = Math.cos(angle),
     s = Math.sin(angle);
@@ -315,18 +462,25 @@ function boneMatrix(
     rig.y + (t.y ?? 0) - s * rig.x - c * rig.y,
   ];
   const result = multiply(
-    rig.parent ? boneMatrix(rig.parent, frame, cache) : IDENTITY,
+    rig.parent ? boneMatrix(rig.parent, frame, cache, k, joints) : IDENTITY,
     local,
   );
   cache[bone] = result;
   return result;
 }
+export function clipFor(
+  pose: Pose,
+  character?: Pick<PixelCharacter, "clips">,
+): Clip {
+  return character?.clips?.[pose] ?? CLIPS[pose];
+}
 export function samplePose(
   pose: Pose,
   elapsed: number,
   still = false,
+  character?: Pick<PixelCharacter, "clips">,
 ): { frame: Frame; expression: Expression; index: number } {
-  const frames = CLIPS[pose].frames;
+  const frames = clipFor(pose, character).frames;
   const duration = frames.reduce((sum, f) => sum + f.duration, 0);
   let time =
     still || !Number.isFinite(elapsed) ? 0 : Math.max(0, elapsed) % duration;
@@ -363,16 +517,31 @@ export function compose(
   elapsed: number,
   still = false,
 ): string[] {
-  const output = Array.from({ length: HEIGHT }, () =>
-    Array<string>(WIDTH).fill("."),
+  const k = detailOf(character);
+  const wide = WIDTH * k,
+    high = HEIGHT * k;
+  const output = Array.from({ length: high }, () =>
+    Array<string>(wide).fill("."),
   );
-  const { frame, expression } = samplePose(pose, elapsed, still);
+  const { frame, expression, index } = samplePose(
+    pose,
+    elapsed,
+    still,
+    character,
+  );
   const cache: Partial<Record<Bone, Matrix>> = {};
   const view = facing === "left" ? "right" : facing;
   for (const part of character.parts) {
+    if (part.poses && !part.poses.includes(pose)) continue;
     const grid = partGrid(part, view, expression);
     if (!grid.length) continue;
-    const m = boneMatrix(part.attachments?.[pose] ?? part.bone, frame, cache);
+    const m = boneMatrix(
+      part.attachments?.[pose] ?? part.bone,
+      frame,
+      cache,
+      k,
+      character.rig,
+    );
     const width = grid[0].length,
       height = grid.length;
     const corners = [
@@ -381,29 +550,34 @@ export function compose(
       [part.x, part.y + height],
       [part.x + width, part.y + height],
     ];
-    const xs = corners.map(([x, y]) => m[0] * x + m[2] * y + m[4] + 8);
-    const ys = corners.map(([x, y]) => m[1] * x + m[3] * y + m[5] + 12);
+    const xs = corners.map(([x, y]) => m[0] * x + m[2] * y + m[4] + 8 * k);
+    const ys = corners.map(([x, y]) => m[1] * x + m[3] * y + m[5] + 12 * k);
     // Inverse sampling avoids pinholes when rotating individual source pixels.
     for (
       let y = Math.max(0, Math.floor(Math.min(...ys)));
-      y < Math.min(HEIGHT, Math.ceil(Math.max(...ys)));
+      y < Math.min(high, Math.ceil(Math.max(...ys)));
       y++
     ) {
       for (
         let x = Math.max(0, Math.floor(Math.min(...xs)));
-        x < Math.min(WIDTH, Math.ceil(Math.max(...xs)));
+        x < Math.min(wide, Math.ceil(Math.max(...xs)));
         x++
       ) {
-        const dx = x + 0.5 - 8 - m[4],
-          dy = y + 0.5 - 12 - m[5];
+        const dx = x + 0.5 - 8 * k - m[4],
+          dy = y + 0.5 - 12 * k - m[5];
         const sx = Math.floor(m[0] * dx + m[1] * dy - part.x),
           sy = Math.floor(m[2] * dx + m[3] * dy - part.y);
         const color = grid[sy]?.[sx];
         if (color && color !== ".")
-          output[y][facing === "left" ? WIDTH - 1 - x : x] = color;
+          output[y][facing === "left" ? wide - 1 - x : x] = color;
       }
     }
   }
+  // Effects are drawn in ordinary pixels, as blocks on a detailed character.
+  const stamp = (x: number, y: number, color: string) => {
+    for (let j = 0; j < k; j++)
+      for (let i = 0; i < k; i++) output[y * k + j][x * k + i] = color;
+  };
   if (pose === "happy") {
     const heart = [
       ".aa.aa.",
@@ -415,8 +589,34 @@ export function compose(
     ];
     for (let y = 0; y < heart.length; y++)
       for (let x = 0; x < heart[y].length; x++)
-        if (heart[y][x] !== ".") output[10 + y][48 + x] = "a";
+        if (heart[y][x] !== ".") stamp(48 + x, 10 + y, "a");
   }
+  // Small marks beside the head: an anger sign that pulses, and a bobbing music note.
+  const mark = (rows: string[], left: number, top: number) => {
+    for (let y = 0; y < rows.length; y++)
+      for (let x = 0; x < rows[y].length; x++)
+        if (rows[y][x] !== ".") stamp(left + x, top + y, "a");
+  };
+  if (pose === "angry")
+    mark(
+      [
+        "aa...aa",
+        "a.....a",
+        ".......",
+        ".......",
+        ".......",
+        "a.....a",
+        "aa...aa",
+      ],
+      48,
+      index % 2 ? 7 : 8,
+    );
+  if (pose === "dance")
+    mark(
+      ["..aaa", "..a.a", "..a..", "..a..", "aaa..", "aaa.."],
+      index % 2 ? 49 : 47,
+      index % 2 ? 8 : 10,
+    );
   if (pose === "sleep") {
     for (const [x, y] of [
       [47, 15],
@@ -431,7 +631,7 @@ export function compose(
         [1, 2],
         [2, 2],
       ])
-        output[y + dy][x + dx] = "r";
+        stamp(x + dx, y + dy, "r");
   }
   return output.map((row) => row.join(""));
 }
@@ -441,6 +641,13 @@ export function validateCharacter(character: PixelCharacter): void {
       throw new Error(`Missing effect palette color: ${token}`);
   if (!character.parts.length || character.parts.length > 40)
     throw new Error("Use 1–40 pixel parts.");
+  for (const [pose, clip] of Object.entries(character.clips ?? {})) {
+    if (!POSES.includes(pose as Pose) || !clip.frames.length)
+      throw new Error("Invalid pose clip.");
+    // A clip with no length would never advance.
+    if (clip.frames.some((f) => !(f.duration >= 1)))
+      throw new Error("Invalid frame duration.");
+  }
   const ids = new Set<string>();
   for (const part of character.parts) {
     if (ids.has(part.id)) throw new Error("Pixel part IDs must be unique.");
@@ -451,7 +658,8 @@ export function validateCharacter(character: PixelCharacter): void {
       !Object.hasOwn(RIG, part.bone) ||
       Object.values(part.attachments ?? {}).some(
         (bone) => !Object.hasOwn(RIG, bone),
-      )
+      ) ||
+      (part.poses ?? []).some((pose) => !POSES.includes(pose))
     )
       throw new Error("Invalid part attachment.");
     const grids = [
@@ -464,8 +672,8 @@ export function validateCharacter(character: PixelCharacter): void {
       if (!grid.length) continue;
       if (
         !grid[0].length ||
-        grid[0].length > WIDTH ||
-        grid.length > HEIGHT ||
+        grid[0].length > WIDTH * detailOf(character) ||
+        grid.length > HEIGHT * detailOf(character) ||
         grid.some((row) => row.length !== grid[0].length)
       )
         throw new Error("Invalid pixel grid dimensions.");

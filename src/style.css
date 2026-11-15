@@ -813,6 +813,9 @@ html.companion-mode body {
 .compact .stage {
   height: 100vh;
 }
+.compact .stage {
+  align-items: flex-end;
+}
 .compact .pet-position {
   width: 128px;
   top: 0;
@@ -834,4 +837,140 @@ html.companion-mode body {
   width: 100%;
   margin: 8px 0 14px;
   padding: 8px;
+}
+
+/* Reminders and the occasional word: a thought cloud resting just above the head. */
+.bubble {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(250px, calc(100% - 8px));
+  border: 1px solid #dfe5d5;
+  background: #fffefa;
+  border-radius: 16px;
+  padding: 7px 12px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #55624c;
+  text-align: center;
+  z-index: 3;
+  box-shadow: 0 6px 16px -10px #46543980;
+}
+/* Two puffs trailing down toward the character. */
+.bubble:before,
+.bubble:after {
+  content: "";
+  position: absolute;
+  left: clamp(8px, calc(50% - 16px - var(--nudge, 0px)), calc(100% - 18px));
+  bottom: -9px;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #dfe5d5;
+  border-radius: 50%;
+  background: #fffefa;
+}
+.bubble:after {
+  left: clamp(14px, calc(50% - 6px - var(--nudge, 0px)), calc(100% - 12px));
+  bottom: -16px;
+  width: 5px;
+  height: 5px;
+}
+.bubble p {
+  margin: 0;
+}
+.bubble[data-level="1"],
+.bubble[data-level="1"]:before,
+.bubble[data-level="1"]:after {
+  border-color: #e3c58a;
+  background: #fff8e8;
+}
+.bubble[data-level="1"] {
+  color: #7a5a1c;
+}
+.bubble[data-level="2"],
+.bubble[data-level="2"]:before,
+.bubble[data-level="2"]:after {
+  border-color: #d98a8a;
+  background: #ffecec;
+}
+.bubble[data-level="2"] {
+  color: #8f2f3a;
+  font-weight: 600;
+  animation: fume 0.45s steps(2, end) infinite;
+}
+@keyframes fume {
+  50% {
+    transform: translateX(calc(-50% + 2px));
+  }
+}
+.reduce-motion .bubble[data-level="2"] {
+  animation: none;
+}
+.bubble-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+.bubble-actions[hidden] {
+  display: none;
+}
+.bubble-actions button {
+  border: 1px solid #cfd8c2;
+  background: #f1f5e9;
+  color: #4c5a43;
+  border-radius: 8px;
+  padding: 3px 9px;
+  font-size: 10px;
+}
+.bubble-actions button[hidden] {
+  display: none;
+}
+.bubble-actions button#care-done,
+.bubble-actions button#plea-yes {
+  background: #6f8a5b;
+  border-color: #6f8a5b;
+  color: #fff;
+}
+.stage:has(.bubble:not([hidden])) .speech {
+  visibility: hidden;
+}
+/* The character-only window: 160px of character at the bottom, the cloud just over it. */
+.compact .bubble {
+  top: auto;
+  bottom: 138px;
+  /* Centred in whatever part of the window is on the screen. */
+  left: calc(50% + var(--nudge, 0px));
+  max-width: calc(100% - 8px - var(--cut, 0px));
+  padding: 5px 10px;
+}
+.care-settings {
+  margin-top: 14px;
+}
+.care-grid {
+  display: grid;
+  grid-template-columns: 1fr 64px auto;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 12px;
+}
+.care-grid input {
+  width: 100%;
+  padding: 5px 6px;
+}
+.pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.pack-actions button {
+  border: 1px solid #dfe5d5;
+  background: #eff3e7;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 11px;
 }

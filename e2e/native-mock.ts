@@ -15,7 +15,20 @@ export async function installNativeMock(
       alwaysOnTop: true,
       trayAvailable: options.trayAvailable,
       storageAvailable: true,
+      awareness: true,
     };
+    let roaming = false;
+    const errands: string[] = [];
+    const menus: unknown[] = [];
+    let attention = false;
+    // Stands in for the native movement thread.
+    setInterval(() => {
+      if (!roaming || !desktop.compact || !desktop.visible || !desktop.roaming)
+        return;
+      position.x += 4;
+      position.steps++;
+      if (desktop.movement !== "walk") position.y += 2;
+    }, 125);
     const jev = {
       enabled: false,
       hasKey: false,
@@ -29,14 +42,15 @@ export async function installNativeMock(
     let nextId = 1;
     const callbacks = new Map<number, (event: unknown) => void>();
     const listeners = new Map<number, { event: string; handler: number }>();
-    function emit() {
+    function send(event: string, payload: unknown) {
       for (const [id, item] of listeners)
-        if (item.event === "desktop-state")
-          callbacks.get(item.handler)?.({
-            event: "desktop-state",
-            id,
-            payload: { ...desktop },
-          });
+        if (item.event === event)
+          callbacks.get(item.handler)?.({ event, id, payload });
+    }
+    function emit() {
+      // Like the native side, every window action stops roaming until asked again.
+      roaming = false;
+      send("desktop-state", { ...desktop });
     }
     async function invoke(command: string, args: Record<string, unknown> = {}) {
       switch (command) {
@@ -51,13 +65,20 @@ export async function installNativeMock(
         case "plugin:event|unlisten":
           listeners.delete(Number(args.eventId));
           return;
-        case "desktop_step":
-          if (!desktop.compact || !desktop.visible || !desktop.roaming)
-            return 0;
-          position.x += 4;
-          position.steps++;
-          if (desktop.movement !== "walk") position.y += 2;
-          return 1;
+        case "desktop_roam":
+          roaming = args.active === true;
+          return;
+        case "desktop_lively":
+          return;
+        case "desktop_errand":
+          errands.push(String(args.errand));
+          return;
+        case "desktop_menu":
+          menus.push({ resting: args.resting, staying: args.staying });
+          return;
+        case "desktop_attention":
+          attention = args.active === true;
+          return;
         case "desktop_movement":
           desktop.movement = String(args.movement);
           emit();
@@ -92,6 +113,9 @@ export async function installNativeMock(
               break;
             case "roaming":
               desktop.roaming = args.value === true;
+              break;
+            case "awareness":
+              desktop.awareness = args.value === true;
               break;
             case "always_on_top":
               desktop.alwaysOnTop = args.value === true;
@@ -143,6 +167,10 @@ export async function installNativeMock(
         invoke("desktop_action", { action }),
       __littlelifeDesktopState: () => ({ ...desktop }),
       __littlelifeDesktopPosition: () => ({ ...position }),
+      __littlelifeAttention: () => attention,
+      __littlelifeErrands: () => [...errands],
+      __littlelifeMenus: () => [...menus],
+      __littlelifeSignal: send,
       __TAURI_EVENT_PLUGIN_INTERNALS__: {
         unregisterListener: (_event: string, id: number) =>
           listeners.delete(id),

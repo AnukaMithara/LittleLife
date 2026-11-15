@@ -7,7 +7,7 @@ import {
 } from "./engine";
 
 /** Original pixel art made from drawing instructions, not imported bitmap assets. */
-class Pixels {
+export class Pixels {
   private cells: string[][];
   constructor(
     readonly width: number,
@@ -54,11 +54,53 @@ class Pixels {
       }
     return this;
   }
+  /** A straight stroke of square dabs. */
+  line(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    color: string,
+    thick = 1,
+  ) {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+    for (let i = 0; i <= steps; i++)
+      this.rect(
+        Math.round(x0 + ((x1 - x0) * i) / steps - (thick - 1) / 2),
+        Math.round(y0 + ((y1 - y0) * i) / steps - (thick - 1) / 2),
+        thick,
+        thick,
+        color,
+      );
+    return this;
+  }
+  /** Trace everything drawn so far with a one-pixel edge. */
+  outline(color: string) {
+    const before = this.cells.map((row) => [...row]);
+    for (let y = 0; y < this.height; y++)
+      for (let x = 0; x < this.width; x++)
+        if (
+          before[y][x] === "." &&
+          [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ].some(([dx, dy]) => (before[y + dy]?.[x + dx] ?? ".") !== ".")
+        )
+          this.cells[y][x] = color;
+    return this;
+  }
+  /** The same drawing facing the other way. */
+  mirror() {
+    this.cells = this.cells.map((row) => [...row].reverse());
+    return this;
+  }
   grid(): Grid {
     return this.cells.map((row) => row.join(""));
   }
 }
-const base: Palette = {
+export const base: Palette = {
   o: "#292534",
   s: "#e9b18d",
   t: "#b87c64",
@@ -77,7 +119,7 @@ const base: Palette = {
   f: "#f3f0ff",
   e: "#222131",
 };
-const part = (
+export const part = (
   id: string,
   bone: Part["bone"],
   x: number,
@@ -107,7 +149,7 @@ function head(profile = false) {
     .rect(11, 15, 2, 1, "t")
     .grid();
 }
-function face(
+export function face(
   expression: "normal" | "blink" | "closed" | "happy",
   profile = false,
 ): Grid {
@@ -215,7 +257,7 @@ function hair(
   if (view === "right") p.rect(3, 13, 6, 10, "v").rect(4, 3, 10, 10, "w");
   return p.grid();
 }
-function eyesPart(): Part {
+export function eyesPart(): Part {
   return part("expression", "head", 12, 9, face("normal"), {
     views: { back: [], right: face("normal", true) },
     expressions: {
@@ -490,6 +532,8 @@ function human(
           jump: "body",
           happy: "body",
           fly: "body",
+          dance: "body",
+          angry: "body",
           swim: "root",
         },
       }),

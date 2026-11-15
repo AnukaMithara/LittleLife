@@ -13,7 +13,7 @@ Click **Characters ↗** on the companion card, or open **Little settings → Pi
 - Choose front, right, back, or left. Automatic direction follows walking; left mirrors the authored right view.
 - Preview idle, walk, sleep, jump, curious, happy, sit, or wave.
 
-Normal companion behavior and Jev use the existing six actions. Sitting, waving, flying and swimming are extra visual poses, so no new model permission or API call is needed. A care action returns the renderer to automatic behavior. Preview poses are not saved across launches. Appearance, colors and direction are saved separately from pet state; changing a look keeps energy and bond. A custom name is preserved unless it matches the previous character's default name.
+Normal companion behavior and Jev use the existing six actions. Sitting, waving, flying, swimming, dancing and being angry are extra visual poses, so no new model permission or API call is needed. A care action returns the renderer to automatic behavior. Preview poses are not saved across launches. Appearance, colors and direction are saved separately from pet state; changing a look keeps energy and bond. A custom name is preserved unless it matches the previous character's default name.
 
 ## Model
 
@@ -26,13 +26,13 @@ Normal companion behavior and Jev use the existing six actions. Sitting, waving,
 
 The logical canvas is **64 × 80 pixels**. Art is authored in a shared 48 × 64 space, with margins for jumping and equipment. Tokens in each grid select colors from a palette; `.` is transparent. Outfits use `p/q/r` for base/shadow/highlight and accessories use `a/b/c`. Hair, skin, eyes, outlines and metal have independent roles.
 
-Seven bones attach the root, body, head, two arms, and two legs. Each pose is a clip of timed, discrete transforms. Parts inherit their bone transforms. The compositor inverse-samples these layers onto integer destination pixels, avoiding gaps when a layer rotates. Right-facing and rear-view art can replace individual layers; left-facing art is mirrored after composition. Eyes switch between normal, blinking, closed, and happy variants. Equipment can change attachments for a pose, such as resting a shield beside the character while sitting.
+Eight bones attach the root, body, head, two arms, two legs, and a held prop that turns about its own middle. Each pose is a clip of timed, discrete transforms. Parts inherit their bone transforms. The compositor inverse-samples these layers onto integer destination pixels, avoiding gaps when a layer rotates. Right-facing and rear-view art can replace individual layers; left-facing art is mirrored after composition. Eyes switch between normal, blinking, closed, and happy variants. Equipment can change attachments for a pose, such as resting a shield beside the character while sitting.
 
 This is a 2D cutout rig with authored views, not a 3D model or an automatic converter for arbitrary photos. Complex new anatomy needs appropriate parts and bone attachments. The current workshop edits appearance and previews poses; it is not a freehand pixel editor or an untrusted character-pack importer.
 
 ## Add a character
 
-Define a `PixelCharacter`, validate it, and register it in `CHARACTERS`. Each `Part` needs an ID, attachment bone, integer position, and a rectangular token grid. Existing pose clips immediately work with correctly attached parts.
+Define a `PixelCharacter`, validate it, and register it in `CHARACTERS`. A character with `detail: 2` is drawn at twice the resolution in the same space; see CHARACTER-PACKS.md. Each `Part` needs an ID, attachment bone, integer position, and a rectangular token grid. Existing pose clips immediately work with correctly attached parts.
 
 ```typescript
 import { CHARACTERS } from './art';

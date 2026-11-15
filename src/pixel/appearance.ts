@@ -1,4 +1,4 @@
-import { CHARACTERS } from "./art";
+import { BUILTIN } from "./characters";
 import { FACINGS, type Facing } from "./engine";
 
 export const APPEARANCE_KEY = "littlelife.pixel.v1";
@@ -9,7 +9,11 @@ export interface Appearance {
   accent?: string;
   facing: Facing | "auto";
 }
-export function restoreAppearance(raw: string | null): Appearance {
+/** `known` says whether a character id exists, built in or imported. */
+export function restoreAppearance(
+  raw: string | null,
+  known: (id: string) => boolean = (id) => BUILTIN.some((c) => c.id === id),
+): Appearance {
   const fallback: Appearance = {
     version: 1,
     character: "moss",
@@ -26,9 +30,10 @@ export function restoreAppearance(raw: string | null): Appearance {
         : undefined;
     return {
       version: 1,
-      character: CHARACTERS.some((c) => c.id === s.character)
-        ? (s.character as string)
-        : "moss",
+      character:
+        typeof s.character === "string" && known(s.character)
+          ? s.character
+          : "moss",
       facing:
         s.facing === "auto" || FACINGS.includes(s.facing as Facing)
           ? (s.facing as Facing | "auto")

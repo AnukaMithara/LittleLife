@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { restoreSense, type Sense } from "./mood";
 
 export const native = isTauri();
 export type Movement = "walk" | "fly" | "swim";
@@ -13,6 +14,7 @@ export interface DesktopState {
   alwaysOnTop: boolean;
   trayAvailable: boolean;
   storageAvailable: boolean;
+  awareness: boolean;
 }
 export type DesktopAction =
   | "ready"
@@ -23,6 +25,7 @@ export type DesktopAction =
   | "click_through"
   | "always_on_top"
   | "roaming"
+  | "awareness"
   | "reset"
   | "quit";
 export async function desktopAction(
@@ -68,8 +71,62 @@ export function desktopError(error: unknown): string {
   return "That desktop action did not work. Use Open LittleLife or Interact in the tray menu to recover.";
 }
 
-export function desktopStep(): Promise<number> {
-  return invoke("desktop_step");
+export function desktopRoam(active: boolean): Promise<void> {
+  return invoke("desktop_roam", { active });
+}
+/** Send it to the nearer bottom corner, over to the pointer, or let it drop where it was put. */
+export function desktopErrand(
+  errand: "aside" | "come" | "settle",
+): Promise<void> {
+  return native ? invoke("desktop_errand", { errand }) : Promise.resolve();
+}
+/** Show the character's own menu where it was right-clicked. */
+export function desktopMenu(resting: boolean, staying: boolean): Promise<void> {
+  return invoke("desktop_menu", { resting, staying });
+}
+/** Awake and free to move: it may come after the person when they change Space. */
+export function desktopLively(active: boolean): Promise<void> {
+  return native ? invoke("desktop_lively", { active }) : Promise.resolve();
+}
+/** While a speech bubble shows, the whole companion window accepts clicks. */
+export function desktopAttention(active: boolean): Promise<void> {
+  return native ? invoke("desktop_attention", { active }) : Promise.resolve();
+}
+export interface DesktopMotion {
+  direction: number;
+  falling: boolean;
+  /** Still on its way, even if the behavior has already moved on. */
+  moving: boolean;
+  /** Stopped half way onto a screen, looking before coming in. */
+  peeking: boolean;
+}
+export interface DesktopSignals {
+  motion(motion: DesktopMotion): void;
+  cursor(near: boolean): void;
+  /** It has just come after the person to another Space or display. */
+  followed(): void;
+  /** Something chosen from the character's menu. */
+  command(name: string): void;
+  activity(sense: Sense): void;
+}
+/** Native observations: where the character is heading, the pointer, and the person's activity. */
+export async function connectSignals(
+  signals: DesktopSignals,
+): Promise<() => void> {
+  const stops = await Promise.all([
+    listen<DesktopMotion>("desktop-motion", (e) => signals.motion(e.payload)),
+    listen("desktop-followed", () => signals.followed()),
+    listen<string>("desktop-command", (e) =>
+      signals.command(String(e.payload)),
+    ),
+    listen<boolean>("desktop-cursor", (e) =>
+      signals.cursor(e.payload === true),
+    ),
+    listen<unknown>("desktop-activity", (e) =>
+      signals.activity(restoreSense(e.payload)),
+    ),
+  ]);
+  return () => stops.forEach((stop) => stop());
 }
 export function desktopMovement(movement: Movement): Promise<DesktopState> {
   return invoke("desktop_movement", { movement });

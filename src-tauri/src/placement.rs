@@ -18,11 +18,16 @@ pub struct Preferences {
     pub placement: Option<Placement>,
     pub roaming: bool,
     pub movement: crate::motion::Movement,
+    /// Let the companion notice the kind of application in use.
+    pub awareness: bool,
 }
+
+/// Logical size of the character-only window: the character with room above for a speech bubble.
+pub const COMPACT: (f64, f64) = (200.0, 236.0);
 
 impl Default for Preferences {
     fn default() -> Self {
-        Self { version: 1, compact: true, always_on_top: true, placement: None, roaming: true, movement: Default::default() }
+        Self { version: 1, compact: true, always_on_top: true, placement: None, roaming: true, movement: Default::default(), awareness: true }
     }
 }
 
@@ -64,7 +69,7 @@ pub fn layout(prefs: &Preferences, areas: &[Area]) -> Option<Layout> {
             })
     });
     let area = matching.or_else(|| usable.iter().copied().find(|a| a.primary)).or_else(|| usable.first().copied())?;
-    let (desired_width, desired_height) = if prefs.compact { (160.0_f64, 180.0_f64) } else { (440.0_f64, 650.0_f64) };
+    let (desired_width, desired_height) = if prefs.compact { COMPACT } else { (440.0_f64, 650.0_f64) };
     let width = desired_width.min(f64::from(area.width) / area.scale);
     let height = desired_height.min(f64::from(area.height) / area.scale);
     let ax = saved.map(|p| anchor(p.anchor_x)).unwrap_or(0.5);
@@ -99,10 +104,10 @@ mod tests {
         let p = capture(&a, 1480, 390, 440, 650);
         let prefs = Preferences { placement: Some(p), compact: true, ..Default::default() };
         let result = layout(&prefs, &[area()]).unwrap();
-        assert_eq!((result.x, result.y), (1760, 860));
+        assert_eq!((result.x, result.y), (1720, 804));
         let scaled = Area { scale: 2.0, width: 2560, height: 1440, ..area() };
         let r = layout(&prefs, &[scaled]).unwrap();
-        assert_eq!((r.x, r.y), (2240, 1080));
+        assert_eq!((r.x, r.y), (2160, 968));
     }
     #[test]
     fn supports_negative_coordinates_and_removed_monitors() {

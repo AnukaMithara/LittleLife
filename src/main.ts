@@ -1,12 +1,15 @@
 import "./style.css";
 import { Roamer } from "./roaming";
 import { character } from "./character";
-import { CHARACTERS } from "./pixel/art";
+import { BUILTIN } from "./pixel/characters";
+import { PackError, writePack } from "./pixel/pack";
+import { PACKS_KEY, Registry } from "./pixel/registry";
 import { APPEARANCE_KEY, restoreAppearance } from "./pixel/appearance";
 import { FACINGS, POSES, type Facing, type Pose } from "./pixel/engine";
 import { PixelPlayer } from "./pixel/player";
 import {
   bondLabel,
+  clamp,
   decide,
   interact,
   restorePet,
@@ -20,13 +23,38 @@ import {
   connectDesktop,
   desktopAction,
   desktopError,
-  desktopStep,
+  desktopRoam,
+  desktopAttention,
+  desktopLively,
+  desktopErrand,
+  desktopMenu,
+  connectSignals,
   desktopMovement,
   type Movement,
   dragWindow,
   native,
   type DesktopState,
 } from "./desktop";
+import {
+  busy,
+  greeting,
+  grooving,
+  settles,
+  UNKNOWN,
+  vibe,
+  type Sense,
+} from "./mood";
+import {
+  answerCare,
+  CARE_KEY,
+  careLine,
+  createCare,
+  minutes,
+  REMINDERS,
+  restoreCare,
+  stepCare,
+} from "./reminders";
+import { notYet, plea, sendAside, stepWaiting, type Waiting } from "./waiting";
 import {
   JevController,
   nativeJev,
@@ -49,7 +77,7 @@ app.innerHTML = `
     </section>
     <section class="companion" aria-label="Your companion">
       <div class="card-top"><span class="card-label"><span class="dot"></span> YOUR LITTLE CORNER</span><div class="window-tools"><button id="compact" class="icon-button" aria-label="Switch to compact companion" title="Compact companion">↙</button><button id="quit" class="icon-button" aria-label="Quit LittleLife" title="Quit">×</button></div></div>
-      <div class="stage" id="stage"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span class="speck s1">✦</span><span class="speck s2">·</span><span class="speck s3">✧</span><div class="speech" id="speech" role="status">Oh, hello there.</div>
+      <div class="stage" id="stage"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span class="speck s1">✦</span><span class="speck s2">·</span><span class="speck s3">✧</span><div class="speech" id="speech" role="status">Oh, hello there.</div><div class="bubble" id="bubble" hidden><p id="bubble-text" role="status"></p><div class="bubble-actions" id="bubble-actions"><button id="care-done" type="button">Done ✓</button><button id="care-later" type="button">Later</button><button id="plea-yes" type="button">Come on out</button><button id="plea-no" type="button">Not yet</button></div></div>
         <div class="pet-position" id="pet-position"><button id="pet" class="pet-button" aria-label="Pet Moss">${character()}</button></div>
         <span class="stage-caption">a little wild. a little wonderful.</span>
       </div>
@@ -57,7 +85,7 @@ app.innerHTML = `
       <div class="vitals"><div><div class="vital-label"><span>Energy</span><span id="energy-value"></span></div><div class="meter" role="meter" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" id="energy-meter"><span id="energy-bar"></span></div></div><div><div class="vital-label"><span>Your bond</span><span id="bond-value"></span></div><div class="meter bond" role="meter" aria-label="Bond" aria-valuemin="0" aria-valuemax="100" id="bond-meter"><span id="bond-bar"></span></div></div></div>
       <div class="actions"><button id="pet-action"><span aria-hidden="true">♡</span> Pet</button><button id="play"><span aria-hidden="true">✧</span> Play</button><button id="rest"><span aria-hidden="true">☾</span> Rest</button></div>
       <div class="bottom-row"><span id="bond-label">Getting acquainted</span><button id="settings-toggle" aria-expanded="false" aria-controls="settings">Little settings <span>⚙</span></button></div>
-      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Reacts to your cursor inside this window. No screen reading or background activity tracking.</p><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select">${CHARACTERS.map((c) => `<option value="${c.id}">${c.name} · ${c.title.toLowerCase()}</option>`).join("")}</select></div><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="desktop-settings" id="desktop-settings" hidden><legend>Desktop companion</legend><p class="settings-note">Companion mode shows only your character. Double-click or right-click it, or use the tray, to open these controls. Drag the character to reposition it.</p><label class="toggle"><span>Roam around the desktop</span><input id="desktop-roaming" type="checkbox" checked/></label><label for="desktop-movement">Movement</label><select id="desktop-movement"><option value="walk">Walking</option><option value="fly">Flying</option><option value="swim">Swimming</option></select><label class="toggle"><span>Keep above other windows</span><input id="desktop-top" type="checkbox" checked/></label><button type="button" id="desktop-pin" class="pause-button">Compact and let clicks pass through</button><p class="settings-note">Click-through applies to the entire companion. To pet or move it again, choose <strong>Interact / restore clicks</strong> in the LittleLife tray or menu-bar icon.</p><div class="desktop-actions"><button type="button" id="desktop-hide">Hide to tray</button><button type="button" id="desktop-reset">Reset position</button></div><p id="desktop-status" class="settings-note" role="status"></p></fieldset><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
+      <section id="settings" class="settings" hidden aria-label="Companion settings"><form id="name-form"><label for="name">A name for your friend</label><div class="name-input"><input id="name" maxlength="24" required autocomplete="off"/><button type="submit">Save</button></div></form><label class="toggle"><span>Quiet company<small>Rest and observe, without wandering</small></span><input type="checkbox" id="quiet"/></label><label class="toggle"><span>Reduce motion<small>Keep animations gentle and still</small></span><input type="checkbox" id="motion"/></label><button class="pause-button" id="pause">Pause companion</button><p class="storage-note" id="storage-note">Your little life is saved on this device.</p><p class="settings-note">Never reads your screen, keystrokes or files. In the desktop app, your friend can notice the kind of app in front; that stays on this device and can be turned off below.</p><fieldset class="care-settings"><legend>Gentle reminders</legend><label class="toggle"><span>Remind me to look after myself<small>Ignore one for long enough and your friend gets cross</small></span><input type="checkbox" id="care-enabled"/></label><div class="care-grid"><label for="care-water">Drink water every</label><input id="care-water" type="number" min="0" max="240" step="5"/><span>min</span><label for="care-eyes">Rest my eyes every</label><input id="care-eyes" type="number" min="0" max="240" step="5"/><span>min</span><label for="care-break">Take a break every</label><input id="care-break" type="number" min="0" max="240" step="5"/><span>min</span></div><p class="settings-note" id="care-note">0 turns one off. Click your friend or Done when you have done it. In the desktop app, three minutes away counts as a break, and reminders wait during calls and videos.</p></fieldset><details class="pixel-workshop" id="pixel-workshop"><summary>Pixel character workshop</summary><p class="settings-note">One pixel rig, many little lives. Switch characters, recolor their clothes, and try different poses.</p><div class="workshop-row"><label for="character-select">Character</label><select id="character-select"></select></div><div class="pack-actions"><button id="pack-import" type="button">Add a character…</button><button id="pack-export" type="button">Share this one</button><button id="pack-remove" type="button" hidden>Remove</button><input id="pack-file" type="file" accept=".json,application/json" hidden aria-label="Character pack file"/></div><p class="settings-note" id="pack-status" role="status">Characters are plain data files, never programs. <strong>Share this one</strong> saves the current character as a pack you can edit and add back.</p><div class="pixel-colors"><label for="pixel-primary">Outfit<input type="color" id="pixel-primary"/></label><label for="pixel-accent">Accent<input type="color" id="pixel-accent"/></label><button id="pixel-reset" type="button">Reset colors</button></div><div class="workshop-row"><label for="pixel-facing">Direction</label><select id="pixel-facing"><option value="auto">Automatic</option>${FACINGS.map((f) => `<option value="${f}">${f}</option>`).join("")}</select></div><div class="workshop-row"><label for="pixel-pose">Pose preview</label><select id="pixel-pose"><option value="auto">Follow companion behavior</option>${POSES.map((p) => `<option value="${p}">${p}</option>`).join("")}</select></div><p class="settings-note" id="pixel-note">64 × 80 logical pixels. Colors and character stay on this device. Poses are a visual preview; care actions return to automatic behavior.</p><p class="settings-note" id="appearance-storage" role="status"></p></details><fieldset class="desktop-settings" id="desktop-settings" hidden><legend>Desktop companion</legend><p class="settings-note">Companion mode shows only your character. Double-click it, or use the tray, to open these controls. Right-click it to ask it something: come here, step aside, take a nap. Drag it to reposition it.</p><label class="toggle"><span>Roam around the desktop</span><input id="desktop-roaming" type="checkbox" checked/></label><label for="desktop-movement">Movement</label><select id="desktop-movement"><option value="walk">Walking</option><option value="fly">Flying</option><option value="swim">Swimming</option></select><label class="toggle"><span>Keep above other windows</span><input id="desktop-top" type="checkbox" checked/></label><label class="toggle"><span>Notice what I'm doing<small>Coding, music, a video or a call changes how your friend behaves. Only the kind of app in front, sound playing and time since your last input are checked.</small></span><input id="desktop-awareness" type="checkbox" checked/></label><button type="button" id="desktop-pin" class="pause-button">Compact and let clicks pass through</button><p class="settings-note">Click-through applies to the entire companion. To pet or move it again, choose <strong>Interact / restore clicks</strong> in the LittleLife tray or menu-bar icon.</p><div class="desktop-actions"><button type="button" id="desktop-hide">Hide to tray</button><button type="button" id="desktop-reset">Reset position</button></div><p id="desktop-status" class="settings-note" role="status"></p></fieldset><fieldset class="jev-settings"><legend>Optional Jev behavior</legend><p id="jev-description" class="settings-note">Desktop only. Your key stays in your OS credential store. When enabled, only energy, bond, time since interaction here, cursor proximity, and the last action are sent to TypeSafe. Provider charges may apply.</p><div id="jev-native" hidden><form id="jev-key-form"><label for="jev-key">TypeSafe API key</label><div class="name-input"><input id="jev-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="Paste your own key"/><button id="jev-save" type="submit">Save key</button></div></form><button class="pause-button" id="jev-forget" type="button">Remove saved key</button><label class="toggle"><span>Request cap per app session<small>Counts attempts, including failures. Maximum 120.</small></span><input id="jev-limit" type="number" min="1" max="120" value="20" aria-label="Jev session request cap"/></label><label class="toggle"><span>Enable Jev this session<small>Allow the pet state above to be sent to TypeSafe</small></span><input id="jev-enabled" type="checkbox"/></label><button id="jev-limit-save" class="pause-button" type="button">Apply request cap</button><p class="settings-note" id="jev-usage">0 / 20 requests this session</p></div><p id="jev-status" class="settings-note" role="status">Offline behavior is always available. Jev setup is available in the Windows and macOS desktop app.</p></fieldset></section>
       <div class="compact-controls"><button id="expand">↗ <span>Open little corner</span></button><button id="move" aria-label="Drag companion" title="Drag companion">↔</button><button id="compact-quit" aria-label="Quit LittleLife">×</button></div>
     </section>
     <footer class="page-footer"><span>Grows on you. Never grows up.</span><span><span id="provider-label">OFFLINE & CONTENT</span> <i class="dot"></i></span></footer>
@@ -79,11 +107,18 @@ try {
 } catch {
   /* Defaults remain usable. */
 }
-let appearance = restoreAppearance(appearanceRaw);
+let packsRaw: string | null = null;
+try {
+  packsRaw = localStorage.getItem(PACKS_KEY);
+} catch {
+  /* Built-in characters remain. */
+}
+const registry = new Registry(BUILTIN, packsRaw);
+let appearance = restoreAppearance(appearanceRaw, (id) => registry.has(id));
 let previewPose: Pose | "auto" = "auto";
 const pixelPlayer = new PixelPlayer($<HTMLCanvasElement>("pixel-character"));
 function selectedCharacter() {
-  return CHARACTERS.find((c) => c.id === appearance.character)!;
+  return registry.get(appearance.character) ?? BUILTIN[0];
 }
 function saveAppearance() {
   try {
@@ -94,8 +129,105 @@ function saveAppearance() {
       "Appearance storage is unavailable. Changes last for this visit.";
   }
 }
+/** The list is built from text nodes: pack names are someone else's words. */
+function listCharacters() {
+  const select = $<HTMLSelectElement>("character-select");
+  select.replaceChildren(
+    ...registry.all().map((c) => {
+      const option = document.createElement("option");
+      option.value = c.id;
+      option.textContent = `${c.name} · ${c.title.toLowerCase()}`;
+      return option;
+    }),
+  );
+}
+function savePacks(): boolean {
+  try {
+    localStorage.setItem(PACKS_KEY, registry.serialize());
+    return true;
+  } catch {
+    return false;
+  }
+}
+/** Switch character, carrying over the default name and its favourite way of moving. */
+function chooseCharacter(id: string) {
+  const previous = selectedCharacter();
+  appearance = { version: 1, character: id, facing: appearance.facing };
+  const next = selectedCharacter();
+  if (state.name === previous.name) {
+    state.name = next.name;
+    if ($<HTMLInputElement>("name").value === previous.name)
+      $<HTMLInputElement>("name").value = state.name;
+  }
+  const movement = next.traits?.movement;
+  if (native && movement && desktopState && desktopState.movement !== movement)
+    void desktopMovement(movement)
+      .then(applyDesktopState)
+      .catch(() => undefined);
+  syncAppearanceControls();
+  saveAppearance();
+  save();
+  render();
+}
+$("pack-import").addEventListener("click", () => $("pack-file").click());
+$("pack-file").addEventListener("change", () => {
+  const input = $<HTMLInputElement>("pack-file");
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  void file
+    .text()
+    .then((source) => {
+      const character = registry.add(source);
+      listCharacters();
+      chooseCharacter(character.id);
+      $("pack-status").textContent = savePacks()
+        ? `${character.name} has joined. Packs stay on this device.`
+        : `${character.name} has joined for this visit; storage is unavailable.`;
+    })
+    .catch((error) => {
+      $("pack-status").textContent =
+        error instanceof PackError
+          ? `That pack could not be added. ${error.message}`
+          : "That file could not be read.";
+    });
+});
+$("pack-remove").addEventListener("click", () => {
+  const character = selectedCharacter();
+  if (!registry.remove(character.id)) return;
+  savePacks();
+  listCharacters();
+  chooseCharacter(BUILTIN[0].id);
+  $("pack-status").textContent = `${character.name} was removed.`;
+});
+$("pack-export").addEventListener("click", () => {
+  const character = selectedCharacter();
+  const source = writePack(character);
+  // The desktop webview has no downloads; the clipboard works in both.
+  if (native) {
+    void navigator.clipboard.writeText(source).then(
+      () => {
+        $("pack-status").textContent =
+          `${character.name}'s pack is on the clipboard. Paste it into a file ending in .json.`;
+      },
+      () => {
+        $("pack-status").textContent = "The clipboard is unavailable.";
+      },
+    );
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(
+    new Blob([source], { type: "application/json" }),
+  );
+  link.download = `${character.id}.littlelife.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  $("pack-status").textContent = `Saved ${link.download}.`;
+});
 function syncAppearanceControls() {
   const character = selectedCharacter();
+  $("pack-remove").hidden = !registry.isImported(character.id);
   $<HTMLSelectElement>("character-select").value = character.id;
   $<HTMLInputElement>("pixel-primary").value =
     appearance.primary ?? character.palette.p;
@@ -104,23 +236,9 @@ function syncAppearanceControls() {
   $<HTMLSelectElement>("pixel-facing").value = appearance.facing;
   $<HTMLSelectElement>("pixel-pose").value = previewPose;
 }
-$("character-select").addEventListener("change", () => {
-  const previous = selectedCharacter();
-  appearance = {
-    version: 1,
-    character: $<HTMLSelectElement>("character-select").value,
-    facing: appearance.facing,
-  };
-  if (state.name === previous.name) {
-    state.name = selectedCharacter().name;
-    if ($<HTMLInputElement>("name").value === previous.name)
-      $<HTMLInputElement>("name").value = state.name;
-  }
-  syncAppearanceControls();
-  saveAppearance();
-  save();
-  render();
-});
+$("character-select").addEventListener("change", () =>
+  chooseCharacter($<HTMLSelectElement>("character-select").value),
+);
 for (const [id, key] of [
   ["pixel-primary", "primary"],
   ["pixel-accent", "accent"],
@@ -155,6 +273,7 @@ $("open-characters").addEventListener("click", () => {
   $<HTMLDetailsElement>("pixel-workshop").open = true;
   $("character-select").focus();
 });
+listCharacters();
 syncAppearanceControls();
 let jevSettingsBusy = false;
 const jev = new JevController(nativeJev, renderJev);
@@ -232,6 +351,126 @@ let compact = false;
 let desktopVisible = !native;
 let desktopState: DesktopState | undefined;
 let desktopBusy = false;
+let sense: Sense = UNKNOWN;
+let sensed = false;
+let falling = false;
+let gliding = false;
+let peeking = false;
+let lively = false;
+let lastFollowLine = 0;
+let careRaw: string | null = null;
+try {
+  careRaw = localStorage.getItem(CARE_KEY);
+} catch {
+  /* Defaults remain usable. */
+}
+let careSettings = restoreCare(careRaw);
+let careState = createCare(careSettings, Date.now());
+let bubbleText = "";
+let bubbleUntil = 0;
+let attention = false;
+/** The desktop app is telling us what the person is doing. */
+function aware() {
+  return native && sensed && desktopState?.awareness === true;
+}
+/** A short line above the character, for moments worth a word. */
+/** Kept to a corner: because the person is busy, or because they said so. */
+let parked: "busy" | "asked" | undefined;
+let unsaid: { text: string; milliseconds: number } | undefined;
+let unsaidAt = 0;
+/** Sent aside by the person, and counting the minutes until it may ask to return. */
+let aside: Waiting | undefined;
+function say(text: string, milliseconds = 6000) {
+  // On the way somewhere, possibly half off a screen: say it on arrival.
+  if (native && compact && gliding && action !== "walk") {
+    unsaid = { text, milliseconds };
+    unsaidAt = Date.now();
+    return;
+  }
+  bubbleText = text;
+  bubbleUntil = Date.now() + milliseconds;
+  $("speech").textContent = text;
+}
+/** How much of the window hangs off each side of its screen. */
+function cut() {
+  const s = screen as Screen & { availLeft?: number };
+  const left = s.availLeft ?? 0;
+  return {
+    left: Math.max(0, left - window.screenX),
+    right: Math.max(
+      0,
+      window.screenX + window.innerWidth - (left + s.availWidth),
+    ),
+  };
+}
+/** Keep the words inside the part of the window that is on the screen. */
+function fitBubble() {
+  if (!compact || $("bubble").hidden) return;
+  const { left, right } = cut();
+  $("bubble").style.setProperty("--cut", `${left + right}px`);
+  $("bubble").style.setProperty("--nudge", `${(left - right) / 2}px`);
+}
+setInterval(fitBubble, 200);
+function park(why: "busy" | "asked") {
+  parked = why;
+  roamer.setActive(false);
+  if (native && compact && !paused && !state.reducedMotion && !media.matches)
+    void desktopErrand("aside").catch(() => undefined);
+}
+/** Let back out of the corner, to its obvious delight when it had to ask. */
+function comeOut(line: string, delighted = false) {
+  parked = undefined;
+  aside = undefined;
+  lastDecision = 0;
+  if (delighted) {
+    state.affection = clamp(state.affection + 1);
+    overrideUntil = Date.now() + 3000;
+    action = "jump";
+    save();
+  }
+  say(line, 3000);
+  render();
+}
+$("plea-yes").addEventListener("click", () => comeOut("Yay! Thank you!", true));
+$("plea-no").addEventListener("click", () => {
+  if (!aside) return;
+  aside = notYet(aside, Date.now());
+  say("Okay… I'll be right here.", 3500);
+  render();
+});
+/** Things asked of the character from its own menu. */
+function command(name: string) {
+  if (paused) return;
+  activity();
+  switch (name) {
+    case "come":
+      parked = undefined;
+      aside = undefined;
+      resting = false;
+      roamer.setActive(false);
+      roamHoldUntil = Date.now() + 20_000;
+      overrideUntil = Date.now() + 4000;
+      action = "happy";
+      void desktopErrand("come").catch(() => undefined);
+      say("Coming!", 3000);
+      break;
+    case "aside":
+      if (parked) comeOut("Back to exploring!");
+      else {
+        park("asked");
+        aside = sendAside(Date.now());
+        say("Okay… I'll wait over here.", 3500);
+      }
+      break;
+    case "nap":
+      care("rest");
+      break;
+    case "play":
+      care("play");
+      break;
+  }
+  render();
+}
 function applyDesktopState(next: DesktopState) {
   const shouldFocus =
     next.visible &&
@@ -259,6 +498,16 @@ function applyDesktopState(next: DesktopState) {
   document.body.classList.toggle("compact", compact);
   document.documentElement.classList.toggle("companion-mode", compact);
   roamBlocked = false;
+  // Any native action may have moved the window, so roaming is asked for afresh.
+  roamer.setActive(false);
+  falling = false;
+  gliding = false;
+  peeking = false;
+  if (!next.awareness) {
+    sense = UNKNOWN;
+    sensed = false;
+  }
+  $<HTMLInputElement>("desktop-awareness").checked = next.awareness;
   $("desktop-settings").hidden = !native;
   $<HTMLInputElement>("desktop-roaming").checked = next.roaming;
   $<HTMLSelectElement>("desktop-movement").value = next.movement;
@@ -281,7 +530,13 @@ function applyDesktopState(next: DesktopState) {
     requestAnimationFrame(() => $("compact").focus());
 }
 async function changeDesktop(
-  action: "hide" | "reset" | "click_through" | "always_on_top" | "roaming",
+  action:
+    | "hide"
+    | "reset"
+    | "click_through"
+    | "always_on_top"
+    | "roaming"
+    | "awareness",
   value?: boolean,
 ) {
   if (desktopBusy) return;
@@ -322,6 +577,12 @@ $("desktop-reset").addEventListener("click", () => {
 $("desktop-roaming").addEventListener("change", () => {
   void changeDesktop("roaming", $<HTMLInputElement>("desktop-roaming").checked);
 });
+$("desktop-awareness").addEventListener("change", () => {
+  void changeDesktop(
+    "awareness",
+    $<HTMLInputElement>("desktop-awareness").checked,
+  );
+});
 $("desktop-movement").addEventListener("change", () => {
   void desktopMovement(
     $<HTMLSelectElement>("desktop-movement").value as Movement,
@@ -339,17 +600,10 @@ let x = 0;
 let direction = 1;
 let roamHoldUntil = 0;
 let roamBlocked = false;
-const roamer = new Roamer(
-  desktopStep,
-  (next) => {
-    direction = next;
-    render();
-  },
-  (error) => {
-    roamBlocked = true;
-    notify(desktopError(error));
-  },
-);
+const roamer = new Roamer(desktopRoam, (error) => {
+  roamBlocked = true;
+  notify(desktopError(error));
+});
 function roamingAllowed() {
   return (
     native &&
@@ -366,6 +620,8 @@ function roamingAllowed() {
     !document.hidden &&
     !cursorNearby &&
     !roamBlocked &&
+    !parked &&
+    !careState.active &&
     Date.now() >= roamHoldUntil
   );
 }
@@ -401,12 +657,75 @@ function save() {
 function render() {
   const character = selectedCharacter();
   roamer.setActive(roamingAllowed());
+  const reminder = paused ? undefined : careState.active;
+  // Waiting in its corner, it has plucked up the courage to ask.
+  const asking = !paused && !reminder && aside?.asked !== undefined;
+  const travelling = native && compact && (action === "walk" || gliding);
+  const style = desktopState?.movement ?? "walk";
   const pose: Pose =
     previewPose !== "auto"
       ? previewPose
-      : action === "walk" && native && compact
-        ? (desktopState?.movement ?? "walk")
-        : action;
+      : travelling && falling
+        ? "jump"
+        : gliding && peeking
+          ? "curious" // Half way onto a screen, having a look first.
+          : gliding && action !== "walk"
+            ? style // Still on the way back into view after being asked to stop.
+            : reminder
+              ? (["wave", "jump", "angry"] as const)[reminder.level]
+              : asking
+                ? "wave"
+                : travelling
+                  ? style
+                  : action === "idle" &&
+                      aware() &&
+                      (vibe(sense) === "watch" || (parked && !grooving(sense)))
+                    ? "sit"
+                    : action === "idle" && aware() && grooving(sense)
+                      ? "dance"
+                      : action;
+  // Mostly off the screen: keep the words for when it is back.
+  const hang = cut();
+  const offscreen = compact && hang.left + hang.right > window.innerWidth - 110;
+  if (offscreen && Date.now() < bubbleUntil) bubbleUntil += 250;
+  const text = offscreen
+    ? ""
+    : reminder
+      ? careLine(reminder.kind, reminder.level)
+      : asking && aside
+        ? plea(aside)
+        : compact && !paused && Date.now() < bubbleUntil
+          ? bubbleText
+          : "";
+  $("bubble").hidden = !text;
+  $("bubble").dataset.level = String(reminder?.level ?? "");
+  $("bubble-text").textContent = text;
+  $("bubble-actions").hidden = !reminder && !asking;
+  $("care-done").hidden = !reminder;
+  $("care-later").hidden = !reminder || reminder.level === 2;
+  $("plea-yes").hidden = !asking;
+  $("plea-no").hidden = !asking;
+  const free =
+    native &&
+    compact &&
+    desktopVisible &&
+    desktopState?.roaming === true &&
+    previewPose === "auto" &&
+    action !== "sleep" &&
+    !paused &&
+    !resting &&
+    !state.quiet &&
+    !state.reducedMotion &&
+    !media.matches;
+  if (lively !== free) {
+    lively = free;
+    void desktopLively(lively).catch(() => undefined);
+  }
+  if (attention !== (compact && !!text)) {
+    attention = compact && !!text;
+    void desktopAttention(attention).catch(() => undefined);
+  }
+  fitBubble();
   const facing =
     appearance.facing === "auto"
       ? ["walk", "fly", "swim"].includes(pose)
@@ -433,7 +752,11 @@ function render() {
   $("pet").setAttribute("aria-label", `Pet ${state.name}`);
   $("action-label").textContent = paused
     ? "Taking a quiet pause"
-    : labels[action];
+    : reminder
+      ? ["Looking out for you", "Still waiting…", "Properly cross"][
+          reminder.level
+        ]
+      : labels[action];
   $("energy-value").textContent = `${Math.round(state.energy)}%`;
   $("bond-value").textContent = `${Math.round(state.affection)}%`;
   $("energy-bar").style.width = `${state.energy}%`;
@@ -486,13 +809,69 @@ function care(kind: "pet" | "play" | "rest") {
     // Prevent rapid clicks from farming energy or affection.
     if (Date.now() >= overrideUntil) state = interact(state, kind);
     overrideUntil = Date.now() + 4000;
-    setAction(
-      kind === "play" ? "jump" : "happy",
-      kind === "play" ? "Catch a little joy!" : "My favourite human.",
+    setAction(kind === "play" ? "jump" : "happy");
+    const lines = selectedCharacter().lines;
+    say(
+      kind === "play"
+        ? (lines?.play ?? "Catch a little joy!")
+        : (lines?.pet ?? "My favourite human."),
+      3500,
     );
+    render();
   }
   save();
 }
+/** The person did what was asked, or wants ten more minutes. */
+function answerReminder(answer: "done" | "later") {
+  const asked = careState.active;
+  if (!asked || paused) return;
+  careState = answerCare(careState, careSettings, Date.now(), answer);
+  activity();
+  resting = false;
+  if (answer === "done") {
+    state.affection = clamp(state.affection + 2);
+    overrideUntil = Date.now() + 4000;
+    action = "happy";
+    say(
+      asked.level === 2
+        ? "Hmph… fine. Thank you."
+        : "Thank you! That makes me happy.",
+    );
+  } else say("Okay, a little later. I'll be back.", 4000);
+  save();
+  render();
+}
+$("care-done").addEventListener("click", () => answerReminder("done"));
+$("care-later").addEventListener("click", () => answerReminder("later"));
+function saveCare() {
+  try {
+    localStorage.setItem(CARE_KEY, JSON.stringify(careSettings));
+  } catch {
+    /* The reminders still work for this visit. */
+  }
+}
+function syncCareControls() {
+  $<HTMLInputElement>("care-enabled").checked = careSettings.enabled;
+  for (const kind of REMINDERS) {
+    $<HTMLInputElement>(`care-${kind}`).value = String(careSettings[kind]);
+    $<HTMLInputElement>(`care-${kind}`).disabled = !careSettings.enabled;
+  }
+}
+for (const id of ["care-enabled", ...REMINDERS.map((kind) => `care-${kind}`)])
+  $(id).addEventListener("change", () => {
+    careSettings.enabled = $<HTMLInputElement>("care-enabled").checked;
+    for (const kind of REMINDERS)
+      careSettings[kind] = minutes(
+        Number($<HTMLInputElement>(`care-${kind}`).value),
+        careSettings[kind],
+      );
+    // New timings start counting from now.
+    careState = createCare(careSettings, Date.now());
+    syncCareControls();
+    saveCare();
+    render();
+  });
+syncCareControls();
 function reportError(error: unknown) {
   console.error(error);
   notify("That window action did not work. Please try again.");
@@ -552,26 +931,59 @@ $("pet").addEventListener("pointermove", (event) => {
     return;
   dragStart = undefined;
   wasDragged = true;
-  void dragWindow()
-    .catch(reportError)
-    .finally(() => {
-      roamHoldUntil = Date.now() + 3000;
-    });
+  void dragWindow().catch(reportError).finally(released);
 });
+/** After being put down, a walking friend drops to the floor and carries on. */
+function released() {
+  roamHoldUntil = Date.now() + 1500;
+  clearTimeout(dropTimer);
+  dropTimer = setTimeout(() => {
+    // Put down by hand while keeping out of the way: stay there, on the floor.
+    if (parked) return void desktopErrand("settle").catch(() => undefined);
+    if (
+      !native ||
+      !compact ||
+      !desktopState?.roaming ||
+      paused ||
+      resting ||
+      state.quiet ||
+      careState.active ||
+      Date.now() < overrideUntil
+    )
+      return;
+    action = "walk";
+    lastDecision = Date.now();
+    render();
+  }, 1600);
+}
+let dropTimer: ReturnType<typeof setTimeout>;
 window.addEventListener("pointerup", () => {
+  if (dragStart || wasDragged) released();
   dragStart = undefined;
-  roamHoldUntil = Date.now() + 3000;
 });
 $("pet").addEventListener("click", () => {
-  if (!wasDragged) care("pet");
+  if (!wasDragged) {
+    if (careState.active) answerReminder("done");
+    else if (aside?.asked !== undefined) comeOut("Yay! Thank you!", true);
+    else care("pet");
+  }
   wasDragged = false;
 });
-for (const event of ["dblclick", "contextmenu"] as const)
-  $("pet").addEventListener(event, (event) => {
-    if (!compact) return;
-    event.preventDefault();
-    setCompact(false).catch(reportError);
-  });
+$("pet").addEventListener("dblclick", (event) => {
+  if (!compact) return;
+  event.preventDefault();
+  setCompact(false).catch(reportError);
+});
+// A right-click asks the character something; in the preview it opens the controls.
+$("pet").addEventListener("contextmenu", (event) => {
+  if (!compact) return;
+  event.preventDefault();
+  if (native)
+    desktopMenu(resting, parked !== undefined).catch(() =>
+      setCompact(false).catch(reportError),
+    );
+  else setCompact(false).catch(reportError);
+});
 $("pet-action").addEventListener("click", () => care("pet"));
 $("play").addEventListener("click", () => care("play"));
 $("rest").addEventListener("click", () => care("rest"));
@@ -676,6 +1088,44 @@ window.addEventListener("pagehide", () => {
   roamer.setActive(false);
   save();
 });
+/** Look up when the pointer comes close, anywhere on the desktop. */
+function noticeCursor(near: boolean) {
+  if (!compact) return;
+  cursorNearby = near;
+  if (
+    near &&
+    state.energy >= 24 &&
+    !paused &&
+    !resting &&
+    !careState.active &&
+    Date.now() > overrideUntil
+  )
+    setAction("curious", "Oh! Is that for me?");
+  else render();
+}
+function noticeActivity(next: Sense) {
+  if (desktopState?.awareness === false) return;
+  const before = sensed ? vibe(sense) : undefined;
+  sense = next;
+  sensed = true;
+  const now = vibe(next);
+  // Busy with something: keep to a corner. Free again: back to wandering.
+  if (before !== now && !paused) {
+    if (settles(next)) {
+      if (!parked) park("busy");
+    } else if (parked === "busy") parked = undefined;
+  }
+  if (before !== undefined && before !== now && !paused) {
+    const line = greeting(now, before);
+    if (line && !careState.active) say(line);
+    if (before === "away" && !resting) {
+      activity();
+      overrideUntil = Date.now() + 4000;
+      action = "happy";
+    } else lastDecision = 0;
+  }
+  render();
+}
 document.addEventListener("visibilitychange", () => {
   jev.invalidate();
   save();
@@ -688,18 +1138,56 @@ setInterval(() => {
   const now = Date.now();
   if (!paused) {
     state = tick(state, action, (now - lastTick) / 1000, now);
-    if (now > overrideUntil && now - lastDecision >= 6000) {
-      const next = resting
+    const stepped = stepCare(careState, careSettings, now, {
+      awaySeconds: aware() ? sense.idleSeconds : 0,
+      busy: aware() && busy(sense),
+    });
+    careState = stepped.care;
+    if (stepped.event === "angry") {
+      // Being ignored hurts a little.
+      state.affection = clamp(state.affection - 3);
+      save();
+    } else if (stepped.event === "rested") {
+      overrideUntil = now + 4000;
+      action = "happy";
+      say("Good break! Welcome back.");
+    } else if (stepped.event === "ask") jev.invalidate();
+    // Still walking long after it meant to speak: say it anyway.
+    if (unsaid && now - unsaidAt > 10_000) {
+      const { text, milliseconds } = unsaid;
+      unsaid = undefined;
+      bubbleText = text;
+      bubbleUntil = now + milliseconds;
+    }
+    if (aside && parked !== "asked") aside = undefined;
+    if (aside && !careState.active) {
+      const waited = stepWaiting(aside, now, aware() && busy(sense));
+      aside = waited.waiting;
+      if (waited.event === "ignored") say("…okay. I'll keep waiting.", 3500);
+    }
+    if (
+      !careState.active &&
+      now > overrideUntil &&
+      now - lastDecision >= 6000
+    ) {
+      const decided = resting
         ? "sleep"
         : decide(
             { ...state, reducedMotion: state.reducedMotion || media.matches },
             {
-              idleSeconds: (now - lastInteraction) / 1000,
+              // The desktop app knows about input anywhere; the preview only about itself.
+              idleSeconds: aware()
+                ? sense.idleSeconds
+                : (now - lastInteraction) / 1000,
               cursorNearby,
               paused,
+              sleeping: action === "sleep",
+              vibe: aware() ? vibe(sense) : undefined,
             },
             Math.random(),
           );
+      // Keeping to a corner means no strolling.
+      const next = parked && decided === "walk" ? "idle" : decided;
       setAction(
         next,
         next === "sleep"
@@ -757,7 +1245,43 @@ setInterval(() => {
 save();
 render();
 
-if (native)
+if (native) {
   void connectDesktop(applyDesktopState)
     .then((stop) => window.addEventListener("pagehide", stop, { once: true }))
     .catch((error) => notify(desktopError(error)));
+  void connectSignals({
+    motion(motion) {
+      direction = motion.direction < 0 ? -1 : 1;
+      falling = motion.falling;
+      gliding = motion.moving === true;
+      peeking = motion.peeking === true;
+      if (!gliding && unsaid) {
+        const { text, milliseconds } = unsaid;
+        unsaid = undefined;
+        say(text, milliseconds);
+      }
+      render();
+    },
+    cursor: noticeCursor,
+    command,
+    followed() {
+      // A word now and then, not at every change of screen.
+      if (careState.active || Date.now() - lastFollowLine < 90_000) return;
+      lastFollowLine = Date.now();
+      const lines = [
+        "Wait for me!",
+        "Where are we going?",
+        "Right behind you.",
+      ];
+      // It is still off the edge of the screen: said once it has come in.
+      unsaid = {
+        text: lines[Math.floor(Math.random() * lines.length)],
+        milliseconds: 4500,
+      };
+      unsaidAt = Date.now();
+    },
+    activity: noticeActivity,
+  })
+    .then((stop) => window.addEventListener("pagehide", stop, { once: true }))
+    .catch(() => undefined);
+}
