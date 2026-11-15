@@ -19,7 +19,7 @@ Protocol/decoder tests and mocked IPC tests do not prove a live TypeSafe account
 - Implemented: debounced placement/view/always-on-top persistence, scale-aware layout, removed-monitor fallback and tray reset.
 - Respect full-screen applications and presentations.
 - Measure CPU, memory, and power use, including during extended idle periods.
-- Implemented: unsigned Windows setup/portable artifacts and Apple Silicon/Intel DMGs. Signed/notarized public distribution remains a release step.
+- Implemented: unsigned Windows setup/portable artifacts and Apple Silicon/Intel DMGs with ad-hoc bundle signatures and embedded-signature verification. Signed/notarized public distribution remains a release step.
 - Additional local personality traits, understandable memory, and reset controls.
 
 ## Pixel engine: implemented

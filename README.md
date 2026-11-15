@@ -17,7 +17,7 @@ This is a desktop preview, not a signed installer release. A personal open-sourc
 - A transparent, frameless, always-on-top Tauri window with a compact companion mode.
 - A browser preview using the same character and behavior engine.
 - Tray/menu-bar recovery, saved position/view mode, always-on-top, and explicit compact click-through.
-- Downloadable unsigned Windows and Apple Silicon/Intel Mac test builds in GitHub Actions.
+- Downloadable Windows and Apple Silicon/Intel Mac test builds in GitHub Actions. Mac previews have ad-hoc bundle signatures; publisher signing/notarization remain pending.
 - No account, analytics, or API key required for offline operation.
 - Optional Jev decisions in the Windows/macOS app, using your own key in the OS credential store.
 
