@@ -1,48 +1,63 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Roamer } from "../src/roaming";
 
-afterEach(() => vi.useRealTimers());
-describe("desktop motion scheduling", () => {
-  it("does no work while inactive and stops pending timers immediately", async () => {
-    vi.useFakeTimers();
-    const step = vi.fn().mockResolvedValue(1);
-    const roamer = new Roamer(step, vi.fn(), vi.fn());
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(step).not.toHaveBeenCalled();
-    roamer.setActive(true);
-    await vi.advanceTimersByTimeAsync(250);
-    expect(step).toHaveBeenCalledTimes(2);
+const settle = () => new Promise((done) => setTimeout(done, 0));
+describe("desktop motion requests", () => {
+  it("asks the native side only when the wish changes", async () => {
+    const roam = vi.fn().mockResolvedValue(undefined);
+    const roamer = new Roamer(roam, vi.fn());
     roamer.setActive(false);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(step).toHaveBeenCalledTimes(2);
-  });
-  it("never overlaps native moves and ignores a reply after pause or hide", async () => {
-    vi.useFakeTimers();
-    let resolve!: (direction: number) => void;
-    const step = vi.fn(
-      () =>
-        new Promise<number>((done) => {
-          resolve = done;
-        }),
-    );
-    const turned = vi.fn();
-    const roamer = new Roamer(step, turned, vi.fn());
+    await settle();
+    expect(roam).not.toHaveBeenCalled();
     roamer.setActive(true);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(step).toHaveBeenCalledTimes(1);
+    roamer.setActive(true);
     roamer.setActive(false);
-    resolve(-1);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(turned).not.toHaveBeenCalled();
-    expect(step).toHaveBeenCalledTimes(1);
+    await settle();
+    expect(roam.mock.calls.map((call) => call[0])).toEqual([true, false]);
   });
-  it("stops on native failure instead of repeatedly issuing failing moves", async () => {
-    vi.useFakeTimers();
-    const step = vi.fn().mockRejectedValue("monitor"),
-      failed = vi.fn();
-    new Roamer(step, vi.fn(), failed).setActive(true);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(step).toHaveBeenCalledTimes(1);
-    expect(failed).toHaveBeenCalledWith("monitor");
+  it("sends requests one at a time and in order", async () => {
+    const order: string[] = [];
+    let release!: () => void;
+    const roam = vi.fn((active: boolean) => {
+      order.push(`start ${active}`);
+      return active
+        ? new Promise<void>((done) => {
+            release = () => {
+              order.push("end true");
+              done();
+            };
+          })
+        : Promise.resolve();
+    });
+    const roamer = new Roamer(roam, vi.fn());
+    roamer.setActive(true);
+    roamer.setActive(false);
+    await settle();
+    expect(order).toEqual(["start true"]);
+    release();
+    await settle();
+    expect(order).toEqual(["start true", "end true", "start false"]);
+  });
+  it("reports a failed start once and can be asked again later", async () => {
+    const roam = vi
+      .fn()
+      .mockRejectedValueOnce("monitor")
+      .mockResolvedValue(undefined);
+    const failed = vi.fn();
+    const roamer = new Roamer(roam, failed);
+    roamer.setActive(true);
+    await settle();
+    expect(failed).toHaveBeenCalledExactlyOnceWith("monitor");
+    roamer.setActive(true);
+    await settle();
+    expect(roam).toHaveBeenCalledTimes(2);
+  });
+  it("stays quiet about a start that was already cancelled or a failed stop", async () => {
+    const failed = vi.fn();
+    const roamer = new Roamer(vi.fn().mockRejectedValue("window"), failed);
+    roamer.setActive(true);
+    roamer.setActive(false);
+    await settle();
+    expect(failed).not.toHaveBeenCalled();
   });
 });

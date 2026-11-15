@@ -1,43 +1,23 @@
-/** One native request at a time; no motion timer while stopped or hidden. */
+/** Tells the native side when to move. One request at a time, in order, and only on change. */
 export class Roamer {
   private active = false;
-  private busy = false;
   private generation = 0;
-  private timer?: ReturnType<typeof setTimeout>;
+  private queue: Promise<void> = Promise.resolve();
   constructor(
-    private step: () => Promise<number>,
-    private turned: (direction: number) => void,
+    private roam: (active: boolean) => Promise<void>,
     private failed: (error: unknown) => void,
   ) {}
   setActive(active: boolean) {
     if (this.active === active) return;
     this.active = active;
-    this.generation++;
-    clearTimeout(this.timer);
-    this.timer = undefined;
-    this.schedule();
-  }
-  private schedule() {
-    if (!this.active || this.busy || this.timer !== undefined) return;
-    this.timer = setTimeout(() => void this.move(), 125);
-  }
-  private async move() {
-    this.timer = undefined;
-    if (!this.active) return;
-    this.busy = true;
-    const generation = this.generation;
-    try {
-      const direction = await this.step();
-      if (this.active && generation === this.generation && direction)
-        this.turned(direction);
-    } catch (error) {
-      if (generation === this.generation) {
-        this.setActive(false);
+    const generation = ++this.generation;
+    this.queue = this.queue
+      .then(() => this.roam(active))
+      .catch((error) => {
+        // A failed stop needs no report; a failed start must not be retried every frame.
+        if (!active || generation !== this.generation) return;
+        this.active = false;
         this.failed(error);
-      }
-    } finally {
-      this.busy = false;
-      this.schedule();
-    }
+      });
   }
 }

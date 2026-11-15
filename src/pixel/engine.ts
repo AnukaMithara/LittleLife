@@ -12,6 +12,8 @@ export const POSES = [
   "wave",
   "fly",
   "swim",
+  "dance",
+  "angry",
 ] as const;
 export const FACINGS = ["front", "right", "back", "left"] as const;
 export type Pose = (typeof POSES)[number];
@@ -53,6 +55,96 @@ export interface Clip {
   frames: readonly Frame[];
 }
 export const CLIPS: Record<Pose, Clip> = {
+  dance: {
+    frames: [
+      {
+        duration: 230,
+        expression: "happy",
+        bones: {
+          root: { y: -2 },
+          body: { angle: -3 },
+          head: { angle: 6 },
+          leftArm: { angle: 145 },
+          rightArm: { angle: -45 },
+          leftLeg: { angle: 14 },
+        },
+      },
+      {
+        duration: 230,
+        bones: {
+          body: { y: 1 },
+          leftArm: { angle: 70 },
+          rightArm: { angle: -70 },
+        },
+      },
+      {
+        duration: 230,
+        expression: "happy",
+        bones: {
+          root: { y: -2 },
+          body: { angle: 3 },
+          head: { angle: -6 },
+          leftArm: { angle: 45 },
+          rightArm: { angle: -145 },
+          rightLeg: { angle: -14 },
+        },
+      },
+      {
+        duration: 230,
+        bones: {
+          body: { y: 1 },
+          leftArm: { angle: 70 },
+          rightArm: { angle: -70 },
+        },
+      },
+    ],
+  },
+  angry: {
+    frames: [
+      {
+        duration: 160,
+        bones: {
+          root: { x: -1 },
+          body: { y: 1 },
+          head: { y: 1, angle: 5 },
+          leftArm: { angle: 38 },
+          rightArm: { angle: -38 },
+          leftLeg: { angle: 24, y: -2 },
+        },
+      },
+      {
+        duration: 160,
+        bones: {
+          root: { x: 1 },
+          body: { y: 2 },
+          head: { y: 2, angle: 5 },
+          leftArm: { angle: 44 },
+          rightArm: { angle: -44 },
+        },
+      },
+      {
+        duration: 160,
+        bones: {
+          root: { x: -1 },
+          body: { y: 1 },
+          head: { y: 1, angle: -5 },
+          leftArm: { angle: 38 },
+          rightArm: { angle: -38 },
+          rightLeg: { angle: -24, y: -2 },
+        },
+      },
+      {
+        duration: 160,
+        bones: {
+          root: { x: 1 },
+          body: { y: 2 },
+          head: { y: 2, angle: -5 },
+          leftArm: { angle: 44 },
+          rightArm: { angle: -44 },
+        },
+      },
+    ],
+  },
   fly: {
     frames: [
       {
@@ -366,7 +458,7 @@ export function compose(
   const output = Array.from({ length: HEIGHT }, () =>
     Array<string>(WIDTH).fill("."),
   );
-  const { frame, expression } = samplePose(pose, elapsed, still);
+  const { frame, expression, index } = samplePose(pose, elapsed, still);
   const cache: Partial<Record<Bone, Matrix>> = {};
   const view = facing === "left" ? "right" : facing;
   for (const part of character.parts) {
@@ -417,6 +509,32 @@ export function compose(
       for (let x = 0; x < heart[y].length; x++)
         if (heart[y][x] !== ".") output[10 + y][48 + x] = "a";
   }
+  // Small marks beside the head: an anger sign that pulses, and a bobbing music note.
+  const mark = (rows: string[], left: number, top: number) => {
+    for (let y = 0; y < rows.length; y++)
+      for (let x = 0; x < rows[y].length; x++)
+        if (rows[y][x] !== ".") output[top + y][left + x] = "a";
+  };
+  if (pose === "angry")
+    mark(
+      [
+        "aa...aa",
+        "a.....a",
+        ".......",
+        ".......",
+        ".......",
+        "a.....a",
+        "aa...aa",
+      ],
+      48,
+      index % 2 ? 7 : 8,
+    );
+  if (pose === "dance")
+    mark(
+      ["..aaa", "..a.a", "..a..", "..a..", "aaa..", "aaa.."],
+      index % 2 ? 49 : 47,
+      index % 2 ? 8 : 10,
+    );
   if (pose === "sleep") {
     for (const [x, y] of [
       [47, 15],

@@ -42,19 +42,41 @@ Use the LittleLife tray icon on Windows or menu-bar icon on macOS:
 
 Double-click/right-click the character or press Escape to open the full controls; drag the character to reposition it. The expanded in-app × button means **Quit**, so they exit rather than merely hiding. OS close requests hide to the tray when one is available. Opening a second instance restores the existing one instead of creating another companion. On macOS, reopening from the Dock also restores interaction.
 
-Under **Little settings → Desktop companion**, you can select Walking/Flying/Swimming, enable or disable roaming, change always-on-top, hide, reset placement, or choose **Compact and let clicks pass through**. Click-through covers the **entire compact window**, including the character; this phase does not perform pixel-level hit testing. Return through the tray's Interact command to pet or drag again. If the tray cannot be created, hiding and click-through are disabled. Click-through is never saved or enabled on startup.
+Under **Little settings → Desktop companion**, you can select Walking/Flying/Swimming, enable or disable roaming, change always-on-top, hide, reset placement, or choose **Compact and let clicks pass through**. Ordinarily only the character itself (and a speech bubble while one shows) takes clicks; the transparent space around it lets them through. This explicit click-through goes further and covers the **entire compact window**, including the character. Return through the tray's Interact command to pet or drag again. If the tray cannot be created, hiding and click-through are disabled. Click-through is never saved or enabled on startup.
 
 ## Desktop roaming
 
-In native companion mode, the app moves its 160 × 180 logical-pixel transparent window at up to eight small steps per second while the behavior engine is exploring. Walking travels horizontally, flying travels in two dimensions, and swimming follows a gentle wave. Flying and swimming have separate pixel pose clips. Directions turn at the current display’s usable edges, including negative-coordinate and scaled displays. Drag to another monitor to move the roaming area.
+In native companion mode, a background thread moves the 200 × 236 logical-pixel transparent window about thirty times a second while the behavior engine is exploring, and sleeps otherwise. Walking follows the bottom of the work area, flying heads for random spots, and swimming drifts along a gentle wave.
 
-Movement stops for pause, rest, quiet mode, reduced motion, hidden windows, pose previews and pointer interaction. Expanded controls and browser previews do not move a native window. There are no always-on-top fullscreen overlays, global cursor observation, screen inspection, water detection, or simulated keyboard/mouse input. Swimming is a visual movement style over the desktop. Transparent pixels within the small window still receive clicks unless explicit whole-window click-through is enabled.
+- **Between displays.** A walker crosses straight onto a display beside the current one. At an edge with nothing beside it, it sometimes walks out of sight and comes back from the other side, or on another display. Flying and swimming simply set off for a spot on another display now and then.
+- **Being carried.** Drag the character anywhere. Let go in walking mode and it drops to the floor and carries on.
+- **Stopping.** Asked to stop while half out of view or in the air, it finishes coming back first, so it is never left parked off-screen.
+- **Full screen.** On macOS the window is a non-activating panel on every Space, so it appears beside full-screen applications and clicking it does not take focus from your work. The app therefore has no Dock icon. On Windows it stays above maximized windows; exclusive full-screen games draw over everything and are not covered.
+- **Clicks.** About eight times a second the pointer position is compared with the character's box. Outside it, the window ignores the mouse entirely.
+
+Movement stops for pause, rest, quiet mode, reduced motion, hidden windows, pose previews, an active reminder and a nearby pointer. Expanded controls and browser previews do not move a native window. There is no screen inspection and no simulated keyboard or mouse input.
+
+## Fitting company and reminders
+
+Every four seconds the desktop app reduces the front application, playing sound (macOS) and idle time to one category; see **What the desktop app looks at** in the README for exactly what is read and how to turn it off.
+
+| You are… | Your friend… |
+| --- | --- |
+| coding, writing or designing | wanders much less and stays quiet |
+| playing music (or coding with music on) | dances, and is livelier |
+| watching a video | sits down and watches; reminders wait |
+| in a call | stays still and silent; reminders wait |
+| away for five minutes | falls asleep, and greets you when you return |
+
+Reminders are set under **Little settings → Gentle reminders**: water every 45 minutes, eyes every 20 and a break every 50 by default, each adjustable from 5 to 240 minutes or 0 for off. Click the character or **Done** once you have done it; **Later** asks again in ten minutes. After two ignored minutes the request turns annoyed, after five it turns angry: the character stomps, **Later** disappears and the bond drops a little. Three minutes away from keyboard and pointer counts as the break and the eye rest. Time spent away, in a call or watching something never counts as ignoring.
+
+Sound detection is not implemented on Windows, where music is recognized only when a music player is the front application.
 
 ## Position persistence
 
-`desktop-v1.json` in the OS application configuration directory stores the selected view mode, roaming enablement/movement style, always-on-top preference, monitor identity/origin, and normalized position within its work area. Moves are debounced before saving; quit flushes the newest state. The file contains no credentials and is separate from the pet's browser/WebView local storage.
+`desktop-v1.json` in the OS application configuration directory stores the selected view mode, roaming enablement/movement style, the activity-awareness choice, always-on-top preference, monitor identity/origin, and normalized position within its work area. Moves are debounced before saving; quit flushes the newest state. The file contains no credentials and is separate from the pet's browser/WebView local storage.
 
-Saved anchors adapt to resolution and display-scale changes. Missing monitors fall back to the primary display. Window dimensions are limited to the available work area, and placement is repaired on startup, mode changes, display-scale events and tray recovery. Monitor disconnection while idle may still require **Open LittleLife** or **Reset position** from the tray. There is no global cursor polling or screen capture.
+Saved anchors adapt to resolution and display-scale changes. Missing monitors fall back to the primary display. Window dimensions are limited to the available work area, and placement is repaired on startup, mode changes, display-scale events and tray recovery. Monitor disconnection while idle may still require **Open LittleLife** or **Reset position** from the tray. There is no screen capture.
 
 If window preferences cannot be written, the app stays usable and the settings panel reports that the session cannot be saved. Actual native tray interaction, mixed-DPI placement, installation/uninstallation and extended idle power use still need the checks in [TESTING.md](TESTING.md).
 

@@ -1,3 +1,5 @@
+import type { Vibe } from "./mood";
+
 /** Pure offline behavior. A future decision provider can select from ACTIONS. */
 export const ACTIONS = [
   "idle",
@@ -22,6 +24,10 @@ export interface Observation {
   idleSeconds: number;
   cursorNearby: boolean;
   paused: boolean;
+  /** Already asleep: a tired nap continues until properly rested. */
+  sleeping?: boolean;
+  /** What the person is doing, when the desktop app can tell. */
+  vibe?: Vibe;
 }
 export const STORAGE_KEY = "littlelife.moss.v1";
 export const clamp = (n: number, min = 0, max = 100) =>
@@ -109,8 +115,21 @@ export function decide(
 ): Action {
   if (observation.paused) return "idle";
   if (state.energy < 24 || observation.idleSeconds >= 120) return "sleep";
+  if (observation.vibe === "away") return "sleep";
   if (observation.cursorNearby) return "curious";
+  // Waking at the first scrap of energy would mean a nap every few seconds.
+  if (observation.sleeping && state.energy < 60) return "sleep";
   if (state.quiet || state.reducedMotion) return "idle";
+  // Stay put for calls and films, wander less beside focused work, liven up to music.
+  if (observation.vibe === "meeting" || observation.vibe === "watch")
+    return "idle";
+  if (observation.vibe === "focus") return random < 0.12 ? "walk" : "idle";
+  if (observation.vibe === "music")
+    return random < 0.3
+      ? "walk"
+      : random < 0.5 && state.energy > 40
+        ? "jump"
+        : "idle";
   if (random < 0.3) return "walk";
   if (random < 0.38 && state.energy > 55) return "jump";
   return "idle";

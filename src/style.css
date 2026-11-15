@@ -813,6 +813,9 @@ html.companion-mode body {
 .compact .stage {
   height: 100vh;
 }
+.compact .stage {
+  align-items: flex-end;
+}
 .compact .pet-position {
   width: 128px;
   top: 0;
@@ -834,4 +837,91 @@ html.companion-mode body {
   width: 100%;
   margin: 8px 0 14px;
   padding: 8px;
+}
+
+/* Reminders and the occasional word, above the character in every mode. */
+.bubble {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(250px, calc(100% - 8px));
+  border: 1px solid #dfe5d5;
+  background: #fffefa;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #55624c;
+  text-align: center;
+  z-index: 3;
+  box-shadow: 0 6px 16px -10px #46543980;
+}
+.bubble p {
+  margin: 0;
+}
+.bubble[data-level="1"] {
+  border-color: #e3c58a;
+  background: #fff8e8;
+  color: #7a5a1c;
+}
+.bubble[data-level="2"] {
+  border-color: #d98a8a;
+  background: #ffecec;
+  color: #8f2f3a;
+  font-weight: 600;
+  animation: fume 0.45s steps(2, end) infinite;
+}
+@keyframes fume {
+  50% {
+    transform: translateX(calc(-50% + 2px));
+  }
+}
+.reduce-motion .bubble[data-level="2"] {
+  animation: none;
+}
+.bubble-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+.bubble-actions[hidden] {
+  display: none;
+}
+.bubble-actions button {
+  border: 1px solid #cfd8c2;
+  background: #f1f5e9;
+  color: #4c5a43;
+  border-radius: 8px;
+  padding: 3px 9px;
+  font-size: 10px;
+}
+.bubble-actions button:first-child {
+  background: #6f8a5b;
+  border-color: #6f8a5b;
+  color: #fff;
+}
+.stage:has(.bubble:not([hidden])) .speech {
+  visibility: hidden;
+}
+.compact .bubble {
+  top: 2px;
+  padding: 5px 8px;
+}
+.care-settings {
+  margin-top: 14px;
+}
+.care-grid {
+  display: grid;
+  grid-template-columns: 1fr 64px auto;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 12px;
+}
+.care-grid input {
+  width: 100%;
+  padding: 5px 6px;
 }

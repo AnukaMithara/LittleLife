@@ -13,7 +13,7 @@ Click **Characters ↗** on the companion card, or open **Little settings → Pi
 - Choose front, right, back, or left. Automatic direction follows walking; left mirrors the authored right view.
 - Preview idle, walk, sleep, jump, curious, happy, sit, or wave.
 
-Normal companion behavior and Jev use the existing six actions. Sitting, waving, flying and swimming are extra visual poses, so no new model permission or API call is needed. A care action returns the renderer to automatic behavior. Preview poses are not saved across launches. Appearance, colors and direction are saved separately from pet state; changing a look keeps energy and bond. A custom name is preserved unless it matches the previous character's default name.
+Normal companion behavior and Jev use the existing six actions. Sitting, waving, flying, swimming, dancing and being angry are extra visual poses, so no new model permission or API call is needed. A care action returns the renderer to automatic behavior. Preview poses are not saved across launches. Appearance, colors and direction are saved separately from pet state; changing a look keeps energy and bond. A custom name is preserved unless it matches the previous character's default name.
 
 ## Model
 

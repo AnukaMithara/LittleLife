@@ -29,6 +29,7 @@ const initial: DesktopState = {
   alwaysOnTop: true,
   trayAvailable: true,
   storageAvailable: true,
+  awareness: true,
 };
 beforeEach(() => {
   mocks.invoke.mockReset();

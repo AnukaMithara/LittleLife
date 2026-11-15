@@ -490,6 +490,8 @@ function human(
           jump: "body",
           happy: "body",
           fly: "body",
+          dance: "body",
+          angry: "body",
           swim: "root",
         },
       }),

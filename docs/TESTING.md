@@ -20,7 +20,7 @@ Native behavior needs actual Windows and macOS verification. Do not mark an item
 - [ ] Build an installer, install it, launch it, and uninstall it.
 - [ ] Measure idle CPU/memory and record device/OS/version, rather than assuming low usage.
 
-Known first-milestone limitations: the overlay rectangle receives pointer events, cursor observation is local to the window, walking stays inside the window, there is no system-wide idle detection or signed distribution. Whole-window click-through is explicit and reversible through tray recovery.
+Known limitations: no signed distribution, no sound detection on Windows, and no overlay above exclusive full-screen games. Whole-window click-through is explicit and reversible through tray recovery.
 
 ## Optional Jev acceptance
 
@@ -36,7 +36,7 @@ Browser IPC mocks and Rust response fixtures use no real API credentials. A live
 ## Pixel character acceptance
 
 - [ ] Switch among all four characters, recolor them, close/relaunch, and verify saved appearance.
-- [ ] Preview all eight poses in front, side and rear views; verify equipment stays inside the logical canvas.
+- [ ] Preview all twelve poses in front, side and rear views; verify equipment stays inside the logical canvas.
 - [ ] Pause an active preview and enable OS/app reduced motion; the character must stay still.
 - [ ] Enter compact mode on monitors with different scaling and check pixel edges remain sharp.
 - [ ] Use pet/play/rest during a pose preview; automatic behavior should resume without resetting bond or energy.
@@ -60,9 +60,26 @@ Geometry and IPC tests cover the policy and state transitions. Compilation, pack
 ## Roaming acceptance
 
 - [ ] Walk across the desktop, switch to Flying and Swimming, and verify distinct animation and paths.
-- [ ] At all four work-area edges, the native window remains visible and turns direction; repeat on scaled/negative-coordinate displays.
+- [ ] At a work-area edge the walker turns, or walks out and returns from the other side; it is never left out of sight when it stops.
+- [ ] With two or more displays (side by side, stacked, mixed scaling, negative coordinates), each movement style eventually visits every display.
+- [ ] Drag the character into the air and release it in walking mode; it falls to the floor and walks on. A long drag is never interrupted.
+- [ ] Open another application full screen (macOS) or maximized (Windows); the companion is still there, and clicking it does not take focus.
+- [ ] Click through the transparent space around the character into the application underneath; the character itself and a visible speech bubble still take clicks.
+- [ ] Bring the pointer close from anywhere on the desktop; the character stops and looks curious.
 - [ ] Pause, rest, quiet mode, reduced motion and Hide stop both visible motion and new native movement requests.
 - [ ] Dragging stays under user control; expanding stops roaming; restarting preserves the selected style and roaming preference.
 - [ ] Transparent surroundings remain transparent after compact/expand cycles, and the panel/speech/buttons never appear in companion mode.
 
-Browser tests verify CSS transparency, controls, and mocked native movement requests. Rust tests verify scaled motion geometry. These do not replace native macOS/Windows compositor and movement acceptance.
+Browser tests verify CSS transparency, controls, and mocked native movement requests. Rust tests verify movement across single, side-by-side, stacked and mixed-scale display layouts. These do not replace native macOS/Windows compositor and movement acceptance.
+
+Checked by hand on one Mac (macOS 27, a single 1680 × 1050 display, 0.2.0 development build): the companion appears in another application's full-screen Space, walks along the bottom, wraps from the right edge to the left, and the pointer and window coordinates used for click pass-through agree with the system's. Not yet checked on real hardware: more than one display, Windows, and clicking through by hand.
+
+## Company and reminder acceptance
+
+- [ ] Bring an editor, a music player, a video player and a call to the front in turn; within a few seconds the behavior matches the table in TEST-BUILDS.md.
+- [ ] Leave the computer for five minutes; the character sleeps, then greets you on return.
+- [ ] Turn off **Notice what I'm doing**; behavior no longer changes with the front application.
+- [ ] Set a five-minute water reminder. Answer with the character, with Done and with Later; ignore one for five minutes and confirm the annoyed and angry stages, then make up.
+- [ ] Start a reminder, then step away for three minutes; break and eye reminders clear on return without anger.
+- [ ] Reminders do not appear during a call or a video, and arrive afterwards.
+- [ ] With reduced motion on, the angry bubble does not shake.
