@@ -54,6 +54,13 @@ test("stops pixel animation for pause/reduced motion and uses integer compact sc
   await page.getByRole("button", { name: "Characters ↗" }).click();
   await page.getByLabel("Character", { exact: true }).selectOption("aster");
   await page.getByLabel("Pose preview", { exact: true }).selectOption("walk");
+  const moving = await canvas.evaluate((c) =>
+    (c as HTMLCanvasElement).toDataURL(),
+  );
+  await page.clock.runFor(280);
+  expect(
+    await canvas.evaluate((c) => (c as HTMLCanvasElement).toDataURL()),
+  ).not.toBe(moving);
   await page.getByLabel("Reduce motion").check();
   const still = await canvas.evaluate((c) =>
     (c as HTMLCanvasElement).toDataURL(),
